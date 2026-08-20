@@ -64,6 +64,9 @@ h1{ font-family: var(--display); font-weight:400; letter-spacing:0.01em; font-si
 .lang-switch{ display:flex; background: var(--paper-deep); border:1px solid var(--line); border-radius:7px; padding:2px; flex-shrink:0; }
 .lang-btn{ border:none; background:transparent; padding:4px 9px; font-family: var(--mono); font-size:11px; cursor:pointer; border-radius:5px; color: var(--ink-soft); font-weight:600; }
 .lang-btn.on{ background: var(--burn); color: var(--paper); }
+.logout-btn{ background: var(--paper-deep); border:1px solid var(--line); border-radius:7px; padding:5px 9px; font-family: var(--mono); font-size:11px; color: var(--ink-soft); cursor:pointer; }
+.sync-dot{ width:7px; height:7px; border-radius:50%; background:#2E5C3A; display:inline-block; margin-right:4px; vertical-align:middle; }
+.sync-dot.stale{ background: var(--rust); }
 
 .tabs{ display:flex; gap:4px; background: var(--paper-deep); border:1px solid var(--line); border-radius:10px; padding:4px; margin-bottom:16px; }
 .tab{
@@ -215,9 +218,6 @@ h1{ font-family: var(--display); font-weight:400; letter-spacing:0.01em; font-si
 <div id="app"><div class="loading-screen"><span class="spin">⏳</span><p>Készlet betöltése… / Bestand wird geladen…</p></div></div>
 
 <script>
-const STORAGE_KEY = "furka-inventory-v1";
-const LANG_KEY = "furka-lang";
-
 /* ---------- i18n ---------- */
 const I18N = {
   hu: {
@@ -273,6 +273,7 @@ const I18N = {
     field_photo: "Termékfotó",
     no_photo: "Nincs fotó",
     photo_btn: "📷 Fotó",
+    photo_gallery_btn: "🖼️ Galéria",
     photo_clear: "Törlés",
     field_name: "Megnevezés",
     field_name_placeholder: "pl. Kulcstartó – Mormota",
@@ -288,7 +289,7 @@ const I18N = {
     photo_error: "Nem sikerült beolvasni a fotót",
     sold_flash: "Eladva: {{qty}} db · {{amount}}",
     restocked_flash: "Feltöltve: +{{qty}} db",
-    footer: "Furkapass Souvenirs Készlet · offline PWA",
+    footer: "Furkapass Souvenirs Készlet",
     cat_kulcstarto: "Kulcstartó",
     cat_magnes: "Mágnes",
     cat_konyvjelzo: "Könyvjelző",
@@ -296,6 +297,11 @@ const I18N = {
     cat_ajandek: "Ajándékdoboz",
     cat_egyeb: "Egyéb",
     week_label: "{{y}}. {{week}}. hét ({{from}}–{{to}})",
+    logout_btn: "Kilépés",
+    load_error: "Nem sikerült betölteni az adatokat. Ellenőrizd az internetkapcsolatot.",
+    action_error: "Hiba történt, próbáld újra.",
+    synced_just_now: "szinkronban",
+    sync_stale: "frissítés...",
   },
   de: {
     appTitle: "Souvenirs Bestand",
@@ -350,6 +356,7 @@ const I18N = {
     field_photo: "Produktfoto",
     no_photo: "Kein Foto",
     photo_btn: "📷 Foto",
+    photo_gallery_btn: "🖼️ Galerie",
     photo_clear: "Löschen",
     field_name: "Bezeichnung",
     field_name_placeholder: "z. B. Schlüsselanhänger – Murmeltier",
@@ -365,7 +372,7 @@ const I18N = {
     photo_error: "Foto konnte nicht geladen werden",
     sold_flash: "Verkauft: {{qty}} Stk · {{amount}}",
     restocked_flash: "Aufgefüllt: +{{qty}} Stk",
-    footer: "Furkapass Souvenirs Bestand · Offline-PWA",
+    footer: "Furkapass Souvenirs Bestand",
     cat_kulcstarto: "Schlüsselanhänger",
     cat_magnes: "Magnet",
     cat_konyvjelzo: "Lesezeichen",
@@ -373,6 +380,11 @@ const I18N = {
     cat_ajandek: "Geschenkbox",
     cat_egyeb: "Sonstiges",
     week_label: "KW {{week}} · {{y}} ({{from}}–{{to}})",
+    logout_btn: "Abmelden",
+    load_error: "Daten konnten nicht geladen werden. Internetverbindung prüfen.",
+    action_error: "Fehler aufgetreten, bitte erneut versuchen.",
+    synced_just_now: "synchron",
+    sync_stale: "aktualisieren...",
   }
 };
 
@@ -385,176 +397,179 @@ const MONTHS_SHORT = {
   de: ["Jan","Feb","März","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
 };
 
+const LANG_KEY = "furka-lang";
 let lang = localStorage.getItem(LANG_KEY) || "hu";
-if(lang !== "hu" && lang !== "de") lang = "hu";
+if (lang !== "hu" && lang !== "de") lang = "hu";
 
-function t(key, vars){
+function t(key, vars) {
   let str = (I18N[lang] && I18N[lang][key] !== undefined) ? I18N[lang][key] : key;
-  if(vars){
-    Object.keys(vars).forEach(k=>{ str = str.split("{{"+k+"}}").join(vars[k]); });
-  }
+  if (vars) Object.keys(vars).forEach(k => { str = str.split("{{" + k + "}}").join(vars[k]); });
   return str;
 }
 
 const CATEGORY_META = {
-  kulcstarto: { icon: "🔑" },
-  magnes: { icon: "🧲" },
-  konyvjelzo: { icon: "🔖" },
-  tabla: { icon: "🖼️" },
-  ajandek: { icon: "🎁" },
-  egyeb: { icon: "📦" },
+  kulcstarto: { icon: "🔑" }, magnes: { icon: "🧲" }, konyvjelzo: { icon: "🔖" },
+  tabla: { icon: "🖼️" }, ajandek: { icon: "🎁" }, egyeb: { icon: "📦" },
 };
-function catLabel(cat){ return t("cat_" + cat) === ("cat_" + cat) ? t("cat_egyeb") : t("cat_" + cat); }
+function catLabel(cat) { const k = "cat_" + cat; return t(k) === k ? t("cat_egyeb") : t(k); }
 
-const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+function todayKey(d) { const dt = new Date(d); return dt.toISOString().slice(0, 10); }
+function isoWeekKey(d) {
+  const dt = new Date(d); dt.setHours(0, 0, 0, 0);
+  dt.setDate(dt.getDate() + 3 - ((dt.getDay() + 6) % 7));
+  const week1 = new Date(dt.getFullYear(), 0, 4);
+  const weekNo = 1 + Math.round(((dt - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return `${dt.getFullYear()}-H${String(weekNo).padStart(2, "0")}`;
+}
+function monthKey(d) { const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`; }
+function fmtDay(k) { const [, m, d] = k.split("-"); return `${m}.${d}.`; }
+function fmtMonth(k) { const [, m] = k.split("-"); return MONTHS_SHORT[lang][parseInt(m, 10) - 1]; }
+function chf(n) { return "CHF " + Number(n).toLocaleString("de-CH", { minimumFractionDigits: 0, maximumFractionDigits: 2 }); }
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
-function defaultProducts() {
-  const p = (name, category, price, stock) => ({ id: uid(), name, category, price, stock, lowThreshold: 3, photo: null });
-  return [
-    p('Kulcstartó – Furkapass kör "Swiss Alps"', "kulcstarto", 8, 10),
-    p("Kulcstartó – Mormota táj", "kulcstarto", 8, 8),
-    p("Kulcstartó – Kőszáli kecske", "kulcstarto", 9, 6),
-    p("Kulcstartó – Nap-hegyek kör", "kulcstarto", 8, 9),
-    p("Kulcstartó – Furkapass pecsét (Schweizer Alpen)", "kulcstarto", 8, 8),
-    p("Mágnes – Mormota táj", "magnes", 8, 9),
-    p("Mágnes – Hegycsúcs (Furkapass 2429m)", "magnes", 8, 8),
-    p("Könyvjelző – Kanyargós út (zöld bojt)", "konyvjelzo", 12, 6),
-    p("Könyvjelző – Kanyargós út (arany bojt)", "konyvjelzo", 12, 5),
-    p("Asztali tábla – Hotel Tiefenbach", "tabla", 22, 4),
-    p("Asztali tábla – Dammastock 3630m", "tabla", 22, 4),
-    p("Asztali tábla – Klein Furkahorn 3026m", "tabla", 22, 3),
-    p("Dísztábla – Tehén motívum", "tabla", 18, 3),
-    p("Rauchquarz ajándékdoboz", "ajandek", 39, 5),
-  ];
+/* ---------- API helpers ---------- */
+function goToLogin() { window.location.href = "/login.html"; }
+
+async function apiGet(path) {
+  const r = await fetch(path, { credentials: "same-origin" });
+  if (r.status === 401) { goToLogin(); throw new Error("unauthorized"); }
+  if (!r.ok) throw new Error("api_error");
+  return r.json();
+}
+async function apiSend(path, method, body) {
+  const r = await fetch(path, {
+    method, credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  if (r.status === 401) { goToLogin(); throw new Error("unauthorized"); }
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || "api_error"); }
+  return r.json();
 }
 
-function defaultState(){ return { products: defaultProducts(), logs: [] }; }
-
-function todayKey(d){ const dt = new Date(d); return dt.toISOString().slice(0,10); }
-function isoWeekKey(d){
-  const dt = new Date(d); dt.setHours(0,0,0,0);
-  dt.setDate(dt.getDate() + 3 - ((dt.getDay()+6)%7));
-  const week1 = new Date(dt.getFullYear(),0,4);
-  const weekNo = 1 + Math.round(((dt-week1)/86400000 - 3 + ((week1.getDay()+6)%7))/7);
-  return `${dt.getFullYear()}-H${String(weekNo).padStart(2,"0")}`;
-}
-function monthKey(d){ const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`; }
-function fmtDay(k){ const [,m,d] = k.split("-"); return `${m}.${d}.`; }
-function fmtMonth(k){
-  const [,m]=k.split("-"); return MONTHS_SHORT[lang][parseInt(m,10)-1];
-}
-function chf(n){ return "CHF " + Number(n).toLocaleString("de-CH",{minimumFractionDigits:0,maximumFractionDigits:2}); }
-function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
-
-let state = null;
+let state = { products: [], logs: [] };
 let tab = "dashboard";
 let period = "daily";
 let metric = "chf";
-let modal = null; // {mode:'add'|'edit', product}
-let logModal = null; // {log}
+let modal = null;
+let logModal = null;
 let toastTimer = null;
-let historyOpen = { weekly:false, monthly:false };
-let expandedPeriod = { weekly:null, monthly:null };
+let historyOpen = { weekly: false, monthly: false };
+let expandedPeriod = { weekly: null, monthly: null };
 let pendingPhoto = null;
+let syncTimer = null;
+let busy = false;
 
-function loadState(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    state = raw ? JSON.parse(raw) : defaultState();
-  }catch(e){ state = defaultState(); }
-}
-function saveState(){
-  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+async function refreshState(silent) {
+  try {
+    state = await apiGet("/api/state");
+    render();
+  } catch (e) {
+    if (e.message !== "unauthorized" && !silent) flash(t("load_error"));
+  }
 }
 
-function flash(msg){
+function flash(msg) {
   const el = document.getElementById("toast");
-  if(!el) return;
+  if (!el) return;
   el.textContent = msg;
   el.style.display = "block";
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ el.style.display = "none"; }, 1800);
+  toastTimer = setTimeout(() => { el.style.display = "none"; }, 1800);
 }
 
-function sell(id, qty){
-  const product = state.products.find(p=>p.id===id);
-  if(!product || product.stock < qty) return;
-  product.stock = Math.max(0, product.stock - qty);
-  state.logs.push({ id: uid(), productId: id, type:"sale", qty, price: product.price, ts: Date.now() });
-  saveState(); render();
-  flash(t("sold_flash", { qty, amount: chf(qty*product.price) }));
+async function withBusy(fn) {
+  if (busy) return;
+  busy = true;
+  try { await fn(); } finally { busy = false; }
 }
-function restock(id, qty){
-  const product = state.products.find(p=>p.id===id);
-  if(!product || !qty || qty<=0) return;
-  product.stock += qty;
-  state.logs.push({ id: uid(), productId: id, type:"restock", qty, price: product.price, ts: Date.now() });
-  saveState(); render();
-  flash(t("restocked_flash", { qty }));
-}
-function commitClosing(){
-  let totalSoldQty = 0, totalSoldChf = 0, changed = 0;
-  state.products.forEach(p=>{
-    const input = document.getElementById("closing-input-"+p.id);
-    if(!input) return;
-    const raw = input.value;
-    if(raw === "" || raw === null) return;
-    const newCount = Math.max(0, parseInt(raw,10));
-    if(isNaN(newCount) || newCount === p.stock) return;
-    changed++;
-    if(newCount < p.stock){
-      const sold = p.stock - newCount;
-      state.logs.push({ id: uid(), productId: p.id, type:"sale", qty: sold, price: p.price, ts: Date.now() });
-      totalSoldQty += sold; totalSoldChf += sold * p.price;
-    } else {
-      const gained = newCount - p.stock;
-      state.logs.push({ id: uid(), productId: p.id, type:"restock", qty: gained, price: p.price, ts: Date.now() });
-    }
-    p.stock = newCount;
+
+async function sell(id, qty) {
+  const product = state.products.find(p => p.id === id);
+  if (!product || product.stock < qty) return;
+  await withBusy(async () => {
+    try {
+      await apiSend("/api/sell", "POST", { id, qty });
+      await refreshState();
+      flash(t("sold_flash", { qty, amount: chf(qty * product.price) }));
+    } catch (e) { if (e.message !== "unauthorized") flash(t("action_error")); }
   });
-  saveState();
-  if(changed===0){ flash(t("closing_no_change")); }
-  else { flash(t("closing_done", { qty: totalSoldQty, amount: chf(totalSoldChf) })); }
-  render();
+}
+async function restock(id, qty) {
+  if (!qty || qty <= 0) return;
+  await withBusy(async () => {
+    try {
+      await apiSend("/api/restock", "POST", { id, qty });
+      await refreshState();
+      flash(t("restocked_flash", { qty }));
+    } catch (e) { if (e.message !== "unauthorized") flash(t("action_error")); }
+  });
+}
+async function commitClosing() {
+  const changes = [];
+  state.products.forEach(p => {
+    const input = document.getElementById("closing-input-" + p.id);
+    if (!input || input.value === "") return;
+    const newStock = parseInt(input.value, 10);
+    if (!isNaN(newStock)) changes.push({ id: p.id, newStock });
+  });
+  await withBusy(async () => {
+    try {
+      const r = await apiSend("/api/closing", "POST", { changes });
+      await refreshState();
+      if (r.changed === 0) flash(t("closing_no_change"));
+      else flash(t("closing_done", { qty: r.totalSoldQty, amount: chf(r.totalSoldChf) }));
+    } catch (e) { if (e.message !== "unauthorized") flash(t("action_error")); }
+  });
+}
+async function deleteLogEntry(id) {
+  await withBusy(async () => {
+    try {
+      await apiSend("/api/logs", "DELETE", { id });
+      await refreshState();
+      flash(t("log_deleted"));
+    } catch (e) { if (e.message !== "unauthorized") flash(t("action_error")); }
+  });
+}
+async function updateLogEntry(id, qty) {
+  await withBusy(async () => {
+    try {
+      await apiSend("/api/logs", "PATCH", { id, qty });
+      await refreshState();
+      flash(t("log_updated"));
+    } catch (e) { if (e.message !== "unauthorized") flash(t("action_error")); }
+  });
+}
+async function upsertProduct(data) {
+  await withBusy(async () => {
+    try {
+      await apiSend("/api/products", "POST", data);
+      modal = null;
+      await refreshState();
+      flash(t("product_saved"));
+    } catch (e) { if (e.message !== "unauthorized") flash(t("action_error")); }
+  });
+}
+async function deleteProduct(id) {
+  await withBusy(async () => {
+    try {
+      await apiSend("/api/products", "DELETE", { id });
+      await refreshState();
+      flash(t("product_deleted"));
+    } catch (e) { if (e.message !== "unauthorized") flash(t("action_error")); }
+  });
 }
 
-/* ---------- Log entry edit / delete (with stock correction) ---------- */
-function deleteLogEntry(logId){
-  const log = state.logs.find(l=>l.id===logId);
-  if(!log) return;
-  const product = state.products.find(p=>p.id===log.productId);
-  if(product){
-    if(log.type === "sale") product.stock += log.qty;
-    else product.stock = Math.max(0, product.stock - log.qty);
-  }
-  state.logs = state.logs.filter(l=>l.id!==logId);
-  saveState(); render();
-  flash(t("log_deleted"));
-}
-function updateLogEntry(logId, newQty){
-  const log = state.logs.find(l=>l.id===logId);
-  if(!log || !newQty || newQty <= 0) return;
-  const product = state.products.find(p=>p.id===log.productId);
-  const diff = newQty - log.qty;
-  if(product){
-    if(log.type === "sale") product.stock = Math.max(0, product.stock - diff);
-    else product.stock = Math.max(0, product.stock + diff);
-  }
-  log.qty = newQty;
-  saveState(); render();
-  flash(t("log_updated"));
-}
-
-function compressImage(file, maxSize, quality){
+function compressImage(file, maxSize, quality) {
   maxSize = maxSize || 220; quality = quality || 0.72;
-  return new Promise((resolve, reject)=>{
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e)=>{
+    reader.onload = (e) => {
       const img = new Image();
-      img.onload = ()=>{
+      img.onload = () => {
         let w = img.width, h = img.height;
-        if(w > h){ if(w > maxSize){ h = Math.round(h * maxSize / w); w = maxSize; } }
-        else { if(h > maxSize){ w = Math.round(w * maxSize / h); h = maxSize; } }
+        if (w > h) { if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; } }
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext("2d");
@@ -569,102 +584,85 @@ function compressImage(file, maxSize, quality){
   });
 }
 
-function upsertProduct(data){
-  if(data.id){
-    const idx = state.products.findIndex(p=>p.id===data.id);
-    if(idx>-1) state.products[idx] = {...state.products[idx], ...data};
-  } else {
-    state.products.push({ ...data, id: uid(), stock: data.stock||0 });
+function computeChartData() {
+  const sales = state.logs.filter(l => l.type === "sale");
+  const valueOf = l => metric === "chf" ? l.qty * l.price : l.qty;
+  if (period === "daily") {
+    const days = []; for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push(todayKey(d)); }
+    const map = Object.fromEntries(days.map(k => [k, 0]));
+    sales.forEach(l => { const k = todayKey(l.ts); if (k in map) map[k] += valueOf(l); });
+    return days.map(k => ({ label: fmtDay(k), v: map[k] }));
   }
-  saveState(); modal=null; render();
-  flash(t("product_saved"));
-}
-function deleteProduct(id){
-  state.products = state.products.filter(p=>p.id!==id);
-  state.logs = state.logs.filter(l=>l.productId!==id);
-  saveState(); render();
-  flash(t("product_deleted"));
-}
-
-function computeChartData(){
-  const sales = state.logs.filter(l=>l.type==="sale");
-  const valueOf = l => metric==="chf" ? l.qty*l.price : l.qty;
-  if(period==="daily"){
-    const days=[]; for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(todayKey(d)); }
-    const map = Object.fromEntries(days.map(k=>[k,0]));
-    sales.forEach(l=>{ const k=todayKey(l.ts); if(k in map) map[k]+=valueOf(l); });
-    return days.map(k=>({label:fmtDay(k), v:map[k]}));
+  if (period === "weekly") {
+    const weeks = []; for (let i = 7; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i * 7); weeks.push(isoWeekKey(d)); }
+    const uniq = [...new Set(weeks)];
+    const map = Object.fromEntries(uniq.map(k => [k, 0]));
+    sales.forEach(l => { const k = isoWeekKey(l.ts); if (k in map) map[k] += valueOf(l); });
+    return uniq.map(k => ({ label: k.split("-")[1], v: map[k] }));
   }
-  if(period==="weekly"){
-    const weeks=[]; for(let i=7;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i*7); weeks.push(isoWeekKey(d)); }
-    const uniq=[...new Set(weeks)];
-    const map = Object.fromEntries(uniq.map(k=>[k,0]));
-    sales.forEach(l=>{ const k=isoWeekKey(l.ts); if(k in map) map[k]+=valueOf(l); });
-    return uniq.map(k=>({label:k.split("-")[1], v:map[k]}));
-  }
-  const months=[]; for(let i=11;i>=0;i--){ const d=new Date(); d.setMonth(d.getMonth()-i); months.push(monthKey(d)); }
-  const map = Object.fromEntries(months.map(k=>[k,0]));
-  sales.forEach(l=>{ const k=monthKey(l.ts); if(k in map) map[k]+=valueOf(l); });
-  return months.map(k=>({label:fmtMonth(k), v:map[k]}));
+  const months = []; for (let i = 11; i >= 0; i--) { const d = new Date(); d.setMonth(d.getMonth() - i); months.push(monthKey(d)); }
+  const map = Object.fromEntries(months.map(k => [k, 0]));
+  sales.forEach(l => { const k = monthKey(l.ts); if (k in map) map[k] += valueOf(l); });
+  return months.map(k => ({ label: fmtMonth(k), v: map[k] }));
 }
 
-function computeKpis(){
-  const sales = state.logs.filter(l=>l.type==="sale");
+function computeKpis() {
+  const sales = state.logs.filter(l => l.type === "sale");
   const now = new Date();
-  const tKey=todayKey(now), wKey=isoWeekKey(now), mKey=monthKey(now);
-  const today = sales.filter(l=>todayKey(l.ts)===tKey);
-  const week = sales.filter(l=>isoWeekKey(l.ts)===wKey);
-  const month = sales.filter(l=>monthKey(l.ts)===mKey);
-  const sumDb = a=>a.reduce((s,l)=>s+l.qty,0);
-  const sumChf = a=>a.reduce((s,l)=>s+l.qty*l.price,0);
-  const low = state.products.filter(p=>p.stock<=p.lowThreshold).length;
-  return { todayDb:sumDb(today), todayChf:sumChf(today), weekChf:sumChf(week), monthChf:sumChf(month), low };
+  const tKey = todayKey(now), wKey = isoWeekKey(now), mKey = monthKey(now);
+  const today = sales.filter(l => todayKey(l.ts) === tKey);
+  const week = sales.filter(l => isoWeekKey(l.ts) === wKey);
+  const month = sales.filter(l => monthKey(l.ts) === mKey);
+  const sumDb = a => a.reduce((s, l) => s + l.qty, 0);
+  const sumChf = a => a.reduce((s, l) => s + l.qty * l.price, 0);
+  const low = state.products.filter(p => p.stock <= p.lowThreshold).length;
+  return { todayDb: sumDb(today), todayChf: sumChf(today), weekChf: sumChf(week), monthChf: sumChf(month), low };
 }
 
-function computePeriodHistory(kind, count){
+function computePeriodHistory(kind, count) {
   const keys = [];
-  if(kind==="weekly"){
-    for(let i=0;i<count;i++){ const d=new Date(); d.setDate(d.getDate()-i*7); const k=isoWeekKey(d); if(!keys.includes(k)) keys.push(k); }
+  if (kind === "weekly") {
+    for (let i = 0; i < count; i++) { const d = new Date(); d.setDate(d.getDate() - i * 7); const k = isoWeekKey(d); if (!keys.includes(k)) keys.push(k); }
   } else {
-    for(let i=0;i<count;i++){ const d=new Date(); d.setMonth(d.getMonth()-i); const k=monthKey(d); if(!keys.includes(k)) keys.push(k); }
+    for (let i = 0; i < count; i++) { const d = new Date(); d.setMonth(d.getMonth() - i); const k = monthKey(d); if (!keys.includes(k)) keys.push(k); }
   }
-  const sales = state.logs.filter(l=>l.type==="sale");
-  return keys.map(k=>{
-    const inPeriod = sales.filter(l => (kind==="weekly" ? isoWeekKey(l.ts) : monthKey(l.ts)) === k);
-    const qty = inPeriod.reduce((s,l)=>s+l.qty,0);
-    const chfVal = inPeriod.reduce((s,l)=>s+l.qty*l.price,0);
-    return { key:k, qty, chf:chfVal, logs:inPeriod };
+  const sales = state.logs.filter(l => l.type === "sale");
+  return keys.map(k => {
+    const inPeriod = sales.filter(l => (kind === "weekly" ? isoWeekKey(l.ts) : monthKey(l.ts)) === k);
+    const qty = inPeriod.reduce((s, l) => s + l.qty, 0);
+    const chfVal = inPeriod.reduce((s, l) => s + l.qty * l.price, 0);
+    return { key: k, qty, chf: chfVal, logs: inPeriod };
   });
 }
 
-function periodLabel(kind, key){
-  if(kind==="monthly"){
-    const [y,m] = key.split("-");
-    return `${y}. ${MONTHS[lang][parseInt(m,10)-1]}`;
+function periodLabel(kind, key) {
+  if (kind === "monthly") {
+    const [y, m] = key.split("-");
+    return `${y}. ${MONTHS[lang][parseInt(m, 10) - 1]}`;
   }
   const [y, wpart] = key.split("-H");
-  const week = parseInt(wpart,10);
-  const simple = new Date(parseInt(y,10),0,1+(week-1)*7);
+  const week = parseInt(wpart, 10);
+  const simple = new Date(parseInt(y, 10), 0, 1 + (week - 1) * 7);
   const dow = simple.getDay() || 7;
-  const monday = new Date(simple); monday.setDate(simple.getDate()-dow+1);
-  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
-  const fmt = d => `${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}.`;
+  const monday = new Date(simple); monday.setDate(simple.getDate() - dow + 1);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const fmt = d => `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}.`;
   return t("week_label", { y, week, from: fmt(monday), to: fmt(sunday) });
 }
 
-function periodBreakdownRows(periodLogs){
+function periodBreakdownRows(periodLogs) {
   const map = {};
-  periodLogs.forEach(l=>{
-    if(!map[l.productId]) map[l.productId] = { qty:0, chf:0 };
+  periodLogs.forEach(l => {
+    if (!map[l.productId]) map[l.productId] = { qty: 0, chf: 0 };
     map[l.productId].qty += l.qty;
-    map[l.productId].chf += l.qty*l.price;
+    map[l.productId].chf += l.qty * l.price;
   });
-  const nameOf = id => (state.products.find(p=>p.id===id)||{}).name || t("deleted_product_name");
-  return Object.entries(map).map(([id,v])=>({ name:nameOf(id), ...v })).sort((a,b)=>b.chf-a.chf);
+  const nameOf = id => (state.products.find(p => p.id === id) || {}).name || t("deleted_product_name");
+  return Object.entries(map).map(([id, v]) => ({ name: nameOf(id), ...v })).sort((a, b) => b.chf - a.chf);
 }
 
-function renderHistoryAccordions(){
-  const renderRows = (kind, rows) => rows.map(r=>{
+function renderHistoryAccordions() {
+  const renderRows = (kind, rows) => rows.map(r => {
     const isOpen = expandedPeriod[kind] === r.key;
     const breakdown = isOpen ? periodBreakdownRows(r.logs) : [];
     return `
@@ -672,9 +670,9 @@ function renderHistoryAccordions(){
       <div class="hist-row-head" data-histtoggle="${kind}:${r.key}">
         <span class="hist-period">${esc(periodLabel(kind, r.key))}</span>
         <span class="hist-totals">${r.qty} db · ${chf(r.chf)}</span>
-        <span class="hist-chevron">${isOpen?'−':'+'}</span>
+        <span class="hist-chevron">${isOpen ? '−' : '+'}</span>
       </div>
-      ${isOpen ? (breakdown.length ? `<div class="hist-breakdown">${breakdown.map(b=>`
+      ${isOpen ? (breakdown.length ? `<div class="hist-breakdown">${breakdown.map(b => `
         <div class="hist-item"><span>${esc(b.name)}</span><span>${b.qty} db · ${chf(b.chf)}</span></div>
       `).join("")}</div>` : `<div class="hist-breakdown"><p class="muted" style="margin:2px 0;">${t("no_sale_period")}</p></div>`) : ""}
     </div>`;
@@ -686,24 +684,24 @@ function renderHistoryAccordions(){
   return `
     <div class="accordion">
       <div class="accordion-head" data-accordion="weekly">
-        <span>${t("history_weekly")}</span><span class="accordion-chevron">${historyOpen.weekly?'▲':'▼'}</span>
+        <span>${t("history_weekly")}</span><span class="accordion-chevron">${historyOpen.weekly ? '▲' : '▼'}</span>
       </div>
       ${historyOpen.weekly ? `<div class="accordion-body">${renderRows("weekly", weekly)}</div>` : ""}
     </div>
     <div class="accordion" style="margin-top:6px;">
       <div class="accordion-head" data-accordion="monthly">
-        <span>${t("history_monthly")}</span><span class="accordion-chevron">${historyOpen.monthly?'▲':'▼'}</span>
+        <span>${t("history_monthly")}</span><span class="accordion-chevron">${historyOpen.monthly ? '▲' : '▼'}</span>
       </div>
       ${historyOpen.monthly ? `<div class="accordion-body">${renderRows("monthly", monthly)}</div>` : ""}
     </div>
   `;
 }
 
-function render(){
+function render() {
   const app = document.getElementById("app");
   const kpis = computeKpis();
   const chartData = computeChartData();
-  const maxV = Math.max(1, ...chartData.map(d=>d.v));
+  const maxV = Math.max(1, ...chartData.map(d => d.v));
   const dateLocale = lang === "hu" ? "hu-HU" : "de-CH";
 
   app.innerHTML = `
@@ -715,56 +713,55 @@ function render(){
       </div>
       <div class="header-right">
         <div class="lang-switch">
-          <button class="lang-btn ${lang==='hu'?'on':''}" data-lang="hu">HU</button>
-          <button class="lang-btn ${lang==='de'?'on':''}" data-lang="de">DE</button>
+          <button class="lang-btn ${lang === 'hu' ? 'on' : ''}" data-lang="hu">HU</button>
+          <button class="lang-btn ${lang === 'de' ? 'on' : ''}" data-lang="de">DE</button>
         </div>
-        <div class="datebadge">${new Date().toLocaleDateString(dateLocale,{year:"numeric",month:"long",day:"numeric"})}</div>
+        <button class="logout-btn" id="logoutBtn">${t("logout_btn")}</button>
+        <div class="datebadge">${new Date().toLocaleDateString(dateLocale, { year: "numeric", month: "long", day: "numeric" })}</div>
       </div>
     </div>
     <nav class="tabs">
-      <button class="tab ${tab==='dashboard'?'active':''}" data-tab="dashboard">${t("tab_dashboard")}</button>
-      <button class="tab ${tab==='products'?'active':''}" data-tab="products">${t("tab_products")}</button>
-      <button class="tab ${tab==='closing'?'active':''}" data-tab="closing">${t("tab_closing")}</button>
-      <button class="tab ${tab==='log'?'active':''}" data-tab="log">${t("tab_log")}</button>
+      <button class="tab ${tab === 'dashboard' ? 'active' : ''}" data-tab="dashboard">${t("tab_dashboard")}</button>
+      <button class="tab ${tab === 'products' ? 'active' : ''}" data-tab="products">${t("tab_products")}</button>
+      <button class="tab ${tab === 'closing' ? 'active' : ''}" data-tab="closing">${t("tab_closing")}</button>
+      <button class="tab ${tab === 'log' ? 'active' : ''}" data-tab="log">${t("tab_log")}</button>
     </nav>
     <div id="tabcontent"></div>
     <div class="install-hint">${t("footer")}</div>
   `;
 
-  document.querySelectorAll(".tab").forEach(btn=>{
-    btn.onclick = ()=>{ tab = btn.dataset.tab; render(); };
-  });
-  document.querySelectorAll("[data-lang]").forEach(btn=>{
-    btn.onclick = ()=>{ lang = btn.dataset.lang; localStorage.setItem(LANG_KEY, lang); render(); };
-  });
+  document.querySelectorAll(".tab").forEach(btn => { btn.onclick = () => { tab = btn.dataset.tab; render(); }; });
+  document.querySelectorAll("[data-lang]").forEach(btn => { btn.onclick = () => { lang = btn.dataset.lang; localStorage.setItem(LANG_KEY, lang); render(); }; });
+  document.getElementById("logoutBtn").onclick = async () => {
+    try { await apiSend("/api/logout", "POST"); } catch (e) {}
+    goToLogin();
+  };
 
   const content = document.getElementById("tabcontent");
-  if(tab==="dashboard") content.innerHTML = renderDashboard(kpis, chartData, maxV);
-  else if(tab==="products") content.innerHTML = renderProducts();
-  else if(tab==="closing") content.innerHTML = renderClosing();
+  if (tab === "dashboard") content.innerHTML = renderDashboard(kpis, chartData, maxV);
+  else if (tab === "products") content.innerHTML = renderProducts();
+  else if (tab === "closing") content.innerHTML = renderClosing();
   else content.innerHTML = renderLog();
 
   wireDynamicHandlers();
+  if (modal) renderModal();
+  if (logModal) renderLogModal();
 
-  if(modal) renderModal();
-  if(logModal) renderLogModal();
-
-  // toast element (persist across renders)
-  if(!document.getElementById("toast")){
+  if (!document.getElementById("toast")) {
     const el = document.createElement("div");
-    el.id="toast"; el.className="toast"; el.style.display="none";
+    el.id = "toast"; el.className = "toast"; el.style.display = "none";
     document.body.appendChild(el);
   }
 }
 
-function renderDashboard(kpis, chartData, maxV){
-  const totalStock = state.products.reduce((s,p)=>s+p.stock,0);
-  const stockValue = state.products.reduce((s,p)=>s+p.stock*p.price,0);
-  const lowStock = state.products.filter(p=>p.stock<=p.lowThreshold);
+function renderDashboard(kpis, chartData, maxV) {
+  const totalStock = state.products.reduce((s, p) => s + p.stock, 0);
+  const stockValue = state.products.reduce((s, p) => s + p.stock * p.price, 0);
+  const lowStock = state.products.filter(p => p.stock <= p.lowThreshold);
 
-  const bars = chartData.map(d=>{
-    const h = Math.round((d.v/maxV)*140) || 2;
-    const valLabel = metric==="chf" ? (d.v? "CHF"+d.v : "") : (d.v || "");
+  const bars = chartData.map(d => {
+    const h = Math.round((d.v / maxV) * 140) || 2;
+    const valLabel = metric === "chf" ? (d.v ? "CHF" + d.v : "") : (d.v || "");
     return `<div class="bar-col">
       <div class="bar-value">${valLabel}</div>
       <div class="bar-track"><div class="bar-fill" style="height:${h}px"></div></div>
@@ -785,21 +782,21 @@ function renderDashboard(kpis, chartData, maxV){
       <div class="kpi"><div class="kpi-icon">📦</div><div>
         <div class="kpi-value">${totalStock}</div><div class="kpi-label">${t("kpi_stock")}</div>
         <div class="kpi-sub">${chf(stockValue)}</div></div></div>
-      <div class="kpi ${kpis.low>0?'kpi-warn':''}"><div class="kpi-icon">⚠️</div><div>
+      <div class="kpi ${kpis.low > 0 ? 'kpi-warn' : ''}"><div class="kpi-icon">⚠️</div><div>
         <div class="kpi-value">${kpis.low}</div><div class="kpi-label">${t("kpi_low")}</div></div></div>
     </div>
 
     <div class="card">
       <div class="card-head"><h2>${t("chart_title")}</h2>
         <div class="segmented">
-          <button data-metric="chf" class="${metric==='chf'?'on':''}">${t("metric_chf")}</button>
-          <button data-metric="db" class="${metric==='db'?'on':''}">${t("metric_db")}</button>
+          <button data-metric="chf" class="${metric === 'chf' ? 'on' : ''}">${t("metric_chf")}</button>
+          <button data-metric="db" class="${metric === 'db' ? 'on' : ''}">${t("metric_db")}</button>
         </div>
       </div>
       <div class="segmented wide">
-        <button data-period="daily" class="${period==='daily'?'on':''}">${t("period_daily")}</button>
-        <button data-period="weekly" class="${period==='weekly'?'on':''}">${t("period_weekly")}</button>
-        <button data-period="monthly" class="${period==='monthly'?'on':''}">${t("period_monthly")}</button>
+        <button data-period="daily" class="${period === 'daily' ? 'on' : ''}">${t("period_daily")}</button>
+        <button data-period="weekly" class="${period === 'weekly' ? 'on' : ''}">${t("period_weekly")}</button>
+        <button data-period="monthly" class="${period === 'monthly' ? 'on' : ''}">${t("period_monthly")}</button>
       </div>
       <div class="chartbox"><div class="bar-chart">${bars}</div></div>
     </div>
@@ -808,27 +805,27 @@ function renderDashboard(kpis, chartData, maxV){
 
     <div class="card">
       <div class="card-head"><h2>${t("low_stock_title")}</h2></div>
-      ${lowStock.length===0 ? `<p class="muted">${t("low_stock_ok")}</p>` :
-        `<div class="lowlist">${lowStock.map(p=>`
+      ${lowStock.length === 0 ? `<p class="muted">${t("low_stock_ok")}</p>` :
+      `<div class="lowlist">${lowStock.map(p => `
           <div class="lowrow"><span class="dot"></span><span class="lowname">${esc(p.name)}</span><span class="lowcount">${p.stock} db</span></div>
         `).join("")}</div>`}
     </div>
   </div>`;
 }
 
-function renderProducts(){
+function renderProducts() {
   const grouped = {};
-  state.products.forEach(p=>{ (grouped[p.category] = grouped[p.category]||[]).push(p); });
+  state.products.forEach(p => { (grouped[p.category] = grouped[p.category] || []).push(p); });
 
-  const blocks = Object.entries(grouped).map(([cat, items])=>{
+  const blocks = Object.entries(grouped).map(([cat, items]) => {
     const meta = CATEGORY_META[cat] || CATEGORY_META.egyeb;
-    const cards = items.map(p=>{
+    const cards = items.map(p => {
       const low = p.stock <= p.lowThreshold;
       const thumb = p.photo
         ? `<img class="pc-thumb" src="${p.photo}" alt="" />`
         : `<div class="pc-thumb pc-thumb-placeholder">${meta.icon}</div>`;
       return `
-      <div class="product-card ${low?'low':''}" data-id="${p.id}">
+      <div class="product-card ${low ? 'low' : ''}" data-id="${p.id}">
         <div class="pc-top">
           ${thumb}
           <div class="pc-titles">
@@ -842,10 +839,10 @@ function renderProducts(){
         </div>
         <div class="pc-stocks">
           <div class="stockbox"><div class="stocklabel">${t("stock_label")}</div><div class="stocknum">${p.stock}</div></div>
-          <div class="stockbox value"><div class="stocklabel">${t("stock_value_label")}</div><div class="stocknum small">${chf(p.stock*p.price)}</div></div>
+          <div class="stockbox value"><div class="stocklabel">${t("stock_value_label")}</div><div class="stocknum small">${chf(p.stock * p.price)}</div></div>
         </div>
         <div class="pc-buttons">
-          <button class="btn small" data-sell="${p.id}" ${p.stock<=0?'disabled':''}>${t("sell_btn")}</button>
+          <button class="btn small" data-sell="${p.id}" ${p.stock <= 0 ? 'disabled' : ''}>${t("sell_btn")}</button>
           <div class="restock-group">
             <input type="number" min="1" value="5" data-restock-input="${p.id}" />
             <button class="btn small" data-restock="${p.id}">${t("restock_btn")}</button>
@@ -868,13 +865,13 @@ function renderProducts(){
   </div>`;
 }
 
-function renderClosing(){
+function renderClosing() {
   const grouped = {};
-  state.products.forEach(p=>{ (grouped[p.category] = grouped[p.category]||[]).push(p); });
+  state.products.forEach(p => { (grouped[p.category] = grouped[p.category] || []).push(p); });
 
-  const blocks = Object.entries(grouped).map(([cat, items])=>{
+  const blocks = Object.entries(grouped).map(([cat, items]) => {
     const meta = CATEGORY_META[cat] || CATEGORY_META.egyeb;
-    const rows = items.map(p=>{
+    const rows = items.map(p => {
       const thumb = p.photo
         ? `<img class="cl-thumb" src="${p.photo}" alt="" />`
         : `<div class="cl-thumb cl-thumb-placeholder">${meta.icon}</div>`;
@@ -903,28 +900,28 @@ function renderClosing(){
   </div>`;
 }
 
-function renderLog(){
-  const productOf = id => state.products.find(p=>p.id===id);
-  const nameOf = id => (productOf(id)||{}).name || t("deleted_product_name");
-  const sorted = [...state.logs].sort((a,b)=>b.ts-a.ts).slice(0,200);
+function renderLog() {
+  const productOf = id => state.products.find(p => p.id === id);
+  const nameOf = id => (productOf(id) || {}).name || t("deleted_product_name");
+  const sorted = [...state.logs].sort((a, b) => b.ts - a.ts).slice(0, 200);
   const typeLabel = { sale: t("log_type_sale"), restock: t("log_type_restock") };
-  const totalRevenue = state.logs.filter(l=>l.type==="sale").reduce((s,l)=>s+l.qty*l.price,0);
+  const totalRevenue = state.logs.filter(l => l.type === "sale").reduce((s, l) => s + l.qty * l.price, 0);
   const timeLocale = lang === "hu" ? "hu-HU" : "de-CH";
 
-  const rows = sorted.map(l=>{
-    const sign = l.type==="sale" ? "-" : "+";
-    const qtyLine = `${sign} ${l.qty} db` + (l.type==="sale" ? ` · ${chf(l.qty*l.price)}` : "");
-    const time = new Date(l.ts).toLocaleString(timeLocale,{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const rows = sorted.map(l => {
+    const sign = l.type === "sale" ? "-" : "+";
+    const qtyLine = `${sign} ${l.qty} db` + (l.type === "sale" ? ` · ${chf(l.qty * l.price)}` : "");
+    const time = new Date(l.ts).toLocaleString(timeLocale, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
     const prod = productOf(l.productId);
-    const thumb = prod && prod.photo ? `<img class="log-thumb" src="${prod.photo}" alt="" />` : `<div class="log-thumb log-thumb-placeholder">${prod ? (CATEGORY_META[prod.category]||CATEGORY_META.egyeb).icon : "📦"}</div>`;
+    const thumb = prod && prod.photo ? `<img class="log-thumb" src="${prod.photo}" alt="" />` : `<div class="log-thumb log-thumb-placeholder">${prod ? (CATEGORY_META[prod.category] || CATEGORY_META.egyeb).icon : "📦"}</div>`;
     return `<div class="logrow">
       ${thumb}
       <span class="logtype ${l.type}">${typeLabel[l.type]}</span>
       <span class="logname">${esc(nameOf(l.productId))}</span>
       <span class="logright"><span class="logqty">${qtyLine}</span><span class="logtime">${time}</span></span>
       <span class="logactions">
-        <button class="icon-btn tiny" data-logedit="${l.id}" title="${t('btn_save')}">✎</button>
-        <button class="icon-btn tiny danger" data-logdelete="${l.id}" title="${t('log_delete_confirm')}">🗑</button>
+        <button class="icon-btn tiny" data-logedit="${l.id}">✎</button>
+        <button class="icon-btn tiny danger" data-logdelete="${l.id}">🗑</button>
       </span>
     </div>`;
   }).join("");
@@ -934,59 +931,58 @@ function renderLog(){
     <div class="section-head"><h2>${t("log_title")}</h2>
       <div class="revenue-badge">${t("log_total_revenue")} ${chf(totalRevenue)}</div>
     </div>
-    ${sorted.length===0 ? `<p class="muted">${t("log_empty")}</p>` : `<div class="logtable">${rows}</div>`}
+    ${sorted.length === 0 ? `<p class="muted">${t("log_empty")}</p>` : `<div class="logtable">${rows}</div>`}
   </div>`;
 }
 
-function wireDynamicHandlers(){
-  document.querySelectorAll("[data-metric]").forEach(b=>b.onclick=()=>{ metric=b.dataset.metric; render(); });
-  document.querySelectorAll("[data-period]").forEach(b=>b.onclick=()=>{ period=b.dataset.period; render(); });
-  document.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>sell(b.dataset.sell,1));
-  document.querySelectorAll("[data-restock]").forEach(b=>b.onclick=()=>{
+function wireDynamicHandlers() {
+  document.querySelectorAll("[data-metric]").forEach(b => b.onclick = () => { metric = b.dataset.metric; render(); });
+  document.querySelectorAll("[data-period]").forEach(b => b.onclick = () => { period = b.dataset.period; render(); });
+  document.querySelectorAll("[data-sell]").forEach(b => b.onclick = () => sell(b.dataset.sell, 1));
+  document.querySelectorAll("[data-restock]").forEach(b => b.onclick = () => {
     const input = document.querySelector(`[data-restock-input="${b.dataset.restock}"]`);
-    const qty = Math.max(1, parseInt(input.value,10) || 1);
+    const qty = Math.max(1, parseInt(input.value, 10) || 1);
     restock(b.dataset.restock, qty);
   });
-  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{
-    modal = { mode:"edit", product: state.products.find(p=>p.id===b.dataset.edit) };
+  document.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => {
+    modal = { mode: "edit", product: state.products.find(p => p.id === b.dataset.edit) };
     render();
   });
-  document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>{
-    if(confirm(t("delete_product_confirm"))) deleteProduct(b.dataset.delete);
+  document.querySelectorAll("[data-delete]").forEach(b => b.onclick = () => {
+    if (confirm(t("delete_product_confirm"))) deleteProduct(b.dataset.delete);
   });
   const addBtn = document.getElementById("addProductBtn");
-  if(addBtn) addBtn.onclick = ()=>{ modal = { mode:"add", product:null }; render(); };
+  if (addBtn) addBtn.onclick = () => { modal = { mode: "add", product: null }; render(); };
 
   const commitBtn = document.getElementById("commitClosingBtn");
-  if(commitBtn) commitBtn.onclick = commitClosing;
+  if (commitBtn) commitBtn.onclick = commitClosing;
 
-  document.querySelectorAll("[data-accordion]").forEach(el=>el.onclick=()=>{
+  document.querySelectorAll("[data-accordion]").forEach(el => el.onclick = () => {
     const kind = el.dataset.accordion;
     historyOpen[kind] = !historyOpen[kind];
-    if(!historyOpen[kind]) expandedPeriod[kind] = null;
+    if (!historyOpen[kind]) expandedPeriod[kind] = null;
     render();
   });
-  document.querySelectorAll("[data-histtoggle]").forEach(el=>el.onclick=()=>{
+  document.querySelectorAll("[data-histtoggle]").forEach(el => el.onclick = () => {
     const [kind, key] = el.dataset.histtoggle.split(":");
-    expandedPeriod[kind] = expandedPeriod[kind]===key ? null : key;
+    expandedPeriod[kind] = expandedPeriod[kind] === key ? null : key;
     render();
   });
 
-  // log entry edit / delete
-  document.querySelectorAll("[data-logedit]").forEach(b=>b.onclick=()=>{
-    logModal = { log: state.logs.find(l=>l.id===b.dataset.logedit) };
+  document.querySelectorAll("[data-logedit]").forEach(b => b.onclick = () => {
+    logModal = { log: state.logs.find(l => l.id === b.dataset.logedit) };
     render();
   });
-  document.querySelectorAll("[data-logdelete]").forEach(b=>b.onclick=()=>{
-    if(confirm(t("log_delete_confirm"))) deleteLogEntry(b.dataset.logdelete);
+  document.querySelectorAll("[data-logdelete]").forEach(b => b.onclick = () => {
+    if (confirm(t("log_delete_confirm"))) deleteLogEntry(b.dataset.logdelete);
   });
 }
 
-function renderModal(){
+function renderModal() {
   let host = document.getElementById("modalHost");
-  if(!host){ host = document.createElement("div"); host.id="modalHost"; document.body.appendChild(host); }
-  const p = modal.product || { name:"", category:"kulcstarto", price:8, stock:0, lowThreshold:3, photo:null };
-  const catOptions = Object.entries(CATEGORY_META).map(([k])=>`<option value="${k}" ${p.category===k?'selected':''}>${catLabel(k)}</option>`).join("");
+  if (!host) { host = document.createElement("div"); host.id = "modalHost"; document.body.appendChild(host); }
+  const p = modal.product || { name: "", category: "kulcstarto", price: 8, stock: 0, lowThreshold: 3, photo: null };
+  const catOptions = Object.entries(CATEGORY_META).map(([k]) => `<option value="${k}" ${p.category === k ? 'selected' : ''}>${catLabel(k)}</option>`).join("");
   pendingPhoto = p.photo || null;
 
   const photoPreviewHtml = () => pendingPhoto
@@ -996,7 +992,7 @@ function renderModal(){
   host.innerHTML = `
   <div class="modal-backdrop" id="modalBackdrop">
     <div class="modal" id="modalBox">
-      <div class="modal-head"><h3>${modal.mode==="edit"?t("modal_edit_product"):t("modal_add_product")}</h3>
+      <div class="modal-head"><h3>${modal.mode === "edit" ? t("modal_edit_product") : t("modal_add_product")}</h3>
         <button class="icon-btn" id="modalClose">✕</button></div>
       <div class="modal-body">
         <div class="field-block">
@@ -1004,8 +1000,10 @@ function renderModal(){
           <div class="photo-row">
             <div id="photoPreview">${photoPreviewHtml()}</div>
             <div class="photo-buttons" id="photoButtons">
-              <label class="btn small photo-pick-btn" for="f-photo">${t("photo_btn")}</label>
-              <input type="file" accept="image/*" capture="environment" id="f-photo" style="display:none" />
+              <label class="btn small photo-pick-btn" for="f-photo-camera">${t("photo_btn")}</label>
+              <input type="file" accept="image/*" capture="environment" id="f-photo-camera" style="display:none" />
+              <label class="btn small photo-pick-btn" for="f-photo-gallery">${t("photo_gallery_btn")}</label>
+              <input type="file" accept="image/*" id="f-photo-gallery" style="display:none" />
               ${pendingPhoto ? `<button type="button" class="btn small" id="f-photo-clear">${t("photo_clear")}</button>` : ""}
             </div>
           </div>
@@ -1025,48 +1023,48 @@ function renderModal(){
     </div>
   </div>`;
 
-  document.getElementById("modalBackdrop").onclick = (e)=>{ if(e.target.id==="modalBackdrop"){ modal=null; pendingPhoto=null; host.innerHTML=""; } };
-  document.getElementById("modalClose").onclick = ()=>{ modal=null; pendingPhoto=null; host.innerHTML=""; };
-  document.getElementById("modalCancel").onclick = ()=>{ modal=null; pendingPhoto=null; host.innerHTML=""; };
+  document.getElementById("modalBackdrop").onclick = (e) => { if (e.target.id === "modalBackdrop") { modal = null; pendingPhoto = null; host.innerHTML = ""; } };
+  document.getElementById("modalClose").onclick = () => { modal = null; pendingPhoto = null; host.innerHTML = ""; };
+  document.getElementById("modalCancel").onclick = () => { modal = null; pendingPhoto = null; host.innerHTML = ""; };
 
-  function wirePhotoClear(){
+  function wirePhotoClear() {
     const btn = document.getElementById("f-photo-clear");
-    if(btn) btn.onclick = ()=>{
+    if (btn) btn.onclick = () => {
       pendingPhoto = null;
       document.getElementById("photoPreview").innerHTML = photoPreviewHtml();
-      document.getElementById("photoButtons").querySelectorAll("#f-photo-clear").forEach(b=>b.remove());
+      document.getElementById("photoButtons").querySelectorAll("#f-photo-clear").forEach(b => b.remove());
     };
   }
   wirePhotoClear();
 
-  const photoInput = document.getElementById("f-photo");
-  if(photoInput){
-    photoInput.onchange = async ()=>{
-      const file = photoInput.files && photoInput.files[0];
-      if(!file) return;
-      try{
-        pendingPhoto = await compressImage(file, 240, 0.72);
-        document.getElementById("photoPreview").innerHTML = photoPreviewHtml();
-        if(!document.getElementById("f-photo-clear")){
-          const btn = document.createElement("button");
-          btn.type = "button"; btn.className = "btn small"; btn.id = "f-photo-clear"; btn.textContent = t("photo_clear");
-          document.getElementById("photoButtons").appendChild(btn);
-          wirePhotoClear();
-        }
-      }catch(e){ flash(t("photo_error")); }
-    };
+  async function handlePhotoFile(file) {
+    if (!file) return;
+    try {
+      pendingPhoto = await compressImage(file, 240, 0.72);
+      document.getElementById("photoPreview").innerHTML = photoPreviewHtml();
+      if (!document.getElementById("f-photo-clear")) {
+        const btn = document.createElement("button");
+        btn.type = "button"; btn.className = "btn small"; btn.id = "f-photo-clear"; btn.textContent = t("photo_clear");
+        document.getElementById("photoButtons").appendChild(btn);
+        wirePhotoClear();
+      }
+    } catch (e) { flash(t("photo_error")); }
   }
+  const cameraInput = document.getElementById("f-photo-camera");
+  if (cameraInput) cameraInput.onchange = () => handlePhotoFile(cameraInput.files && cameraInput.files[0]);
+  const galleryInput = document.getElementById("f-photo-gallery");
+  if (galleryInput) galleryInput.onchange = () => handlePhotoFile(galleryInput.files && galleryInput.files[0]);
 
-  document.getElementById("modalSave").onclick = ()=>{
+  document.getElementById("modalSave").onclick = () => {
     const name = document.getElementById("f-name").value.trim();
-    if(!name) return;
+    if (!name) return;
     upsertProduct({
-      id: modal.mode==="edit" ? p.id : undefined,
+      id: modal.mode === "edit" ? p.id : undefined,
       name,
       category: document.getElementById("f-category").value,
-      price: Number(document.getElementById("f-price").value)||0,
-      stock: Number(document.getElementById("f-stock").value)||0,
-      lowThreshold: Number(document.getElementById("f-low").value)||0,
+      price: Number(document.getElementById("f-price").value) || 0,
+      stock: Number(document.getElementById("f-stock").value) || 0,
+      lowThreshold: Number(document.getElementById("f-low").value) || 0,
       photo: pendingPhoto,
     });
     pendingPhoto = null;
@@ -1074,13 +1072,12 @@ function renderModal(){
   };
 }
 
-/* ---------- Log edit modal ---------- */
-function renderLogModal(){
+function renderLogModal() {
   let host = document.getElementById("logModalHost");
-  if(!host){ host = document.createElement("div"); host.id="logModalHost"; document.body.appendChild(host); }
+  if (!host) { host = document.createElement("div"); host.id = "logModalHost"; document.body.appendChild(host); }
   const l = logModal.log;
-  if(!l){ host.innerHTML = ""; return; }
-  const product = state.products.find(p=>p.id===l.productId);
+  if (!l) { host.innerHTML = ""; return; }
+  const product = state.products.find(p => p.id === l.productId);
   const name = product ? product.name : t("deleted_product_name");
   const typeLabel = l.type === "sale" ? t("log_type_sale") : t("log_type_restock");
 
@@ -1100,27 +1097,28 @@ function renderLogModal(){
     </div>
   </div>`;
 
-  const close = ()=>{ logModal=null; host.innerHTML=""; };
-  document.getElementById("logModalBackdrop").onclick = (e)=>{ if(e.target.id==="logModalBackdrop") close(); };
+  const close = () => { logModal = null; host.innerHTML = ""; };
+  document.getElementById("logModalBackdrop").onclick = (e) => { if (e.target.id === "logModalBackdrop") close(); };
   document.getElementById("logModalClose").onclick = close;
   document.getElementById("logModalCancel").onclick = close;
-  document.getElementById("logModalSave").onclick = ()=>{
-    const newQty = Math.max(1, parseInt(document.getElementById("lm-qty").value,10) || 1);
+  document.getElementById("logModalSave").onclick = () => {
+    const newQty = Math.max(1, parseInt(document.getElementById("lm-qty").value, 10) || 1);
     updateLogEntry(l.id, newQty);
     close();
   };
 }
 
-// init
-loadState();
+/* ---------- init + live sync ---------- */
 render();
+refreshState();
 
-// register service worker for offline support
-if("serviceWorker" in navigator){
-  window.addEventListener("load", ()=>{
-    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
-  });
-}
+syncTimer = setInterval(() => {
+  if (!modal && !logModal && document.visibilityState === "visible") refreshState(true);
+}, 15000);
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && !modal && !logModal) refreshState(true);
+});
 </script>
 </body>
 </html>

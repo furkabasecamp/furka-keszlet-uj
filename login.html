@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#2C2620" />
+<title>Belépés — Furka Készlet</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fjalla+One&family=IBM+Plex+Sans:wght@400;600&display=swap');
+  *{box-sizing:border-box;}
+  body{
+    font-family:'IBM Plex Sans',sans-serif; background:#F3ECDD; color:#2C2620;
+    display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; padding:16px;
+  }
+  .box{ background:#E9DFC9; border:1px solid #D9CBA9; border-radius:14px; padding:28px; width:100%; max-width:340px; }
+  h1{ font-family:'Fjalla One',sans-serif; font-weight:400; font-size:22px; margin:0 0 4px; }
+  p.sub{ color:#6B6255; font-size:12.5px; margin:0 0 18px; }
+  input{ width:100%; padding:11px 12px; border-radius:8px; border:1px solid #D9CBA9; margin-bottom:12px; font-size:16px; background:#F3ECDD; color:#2C2620; }
+  button{ width:100%; padding:11px; border-radius:8px; border:none; background:#2C2620; color:#F3ECDD; font-weight:600; cursor:pointer; font-size:14px; }
+  button:disabled{ opacity:0.6; }
+  .err{ color:#B5502E; font-size:12.5px; margin-top:10px; display:none; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>⛰️ Furka Souvenirs</h1>
+  <p class="sub">Készletkezelő — belépés szükséges</p>
+  <form id="loginForm">
+    <input type="password" id="pw" placeholder="Jelszó" autofocus autocomplete="current-password" />
+    <button type="submit" id="loginBtn">Belépés</button>
+    <div class="err" id="err">Hibás jelszó, próbáld újra.</div>
+  </form>
+</div>
+<script>
+document.getElementById('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('err');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Belépés...';
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: document.getElementById('pw').value })
+    });
+    if (r.ok) { window.location.href = '/'; return; }
+    err.style.display = 'block';
+  } catch (e) {
+    err.textContent = 'Hálózati hiba, próbáld újra.';
+    err.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Belépés';
+};
+</script>
+</body>
+</html>
