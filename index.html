@@ -56,11 +56,14 @@ body{
 }
 .eyebrow{ font-family: var(--mono); font-size:10.5px; letter-spacing:0.14em; color: var(--burn-dark); text-transform:uppercase; }
 h1{ font-family: var(--display); font-weight:400; letter-spacing:0.01em; font-size:26px; margin:1px 0 0; }
-.header-right{ margin-left:auto; }
+.header-right{ margin-left:auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 .datebadge{
   font-family: var(--mono); font-size:11px; color: var(--ink-soft);
   background: var(--paper-deep); border:1px solid var(--line); padding:5px 9px; border-radius:6px; white-space:nowrap;
 }
+.lang-switch{ display:flex; background: var(--paper-deep); border:1px solid var(--line); border-radius:7px; padding:2px; flex-shrink:0; }
+.lang-btn{ border:none; background:transparent; padding:4px 9px; font-family: var(--mono); font-size:11px; cursor:pointer; border-radius:5px; color: var(--ink-soft); font-weight:600; }
+.lang-btn.on{ background: var(--burn); color: var(--paper); }
 
 .tabs{ display:flex; gap:4px; background: var(--paper-deep); border:1px solid var(--line); border-radius:10px; padding:4px; margin-bottom:16px; }
 .tab{
@@ -154,13 +157,15 @@ h1{ font-family: var(--display); font-weight:400; letter-spacing:0.01em; font-si
 .btn.small{ padding:6px 9px; font-size:11.5px; flex:1; justify-content:center; white-space:nowrap; }
 .btn.primary{ background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
-.icon-btn{ width:26px; height:26px; border-radius:6px; border:1px solid var(--line); background: var(--paper); display:flex; align-items:center; justify-content:center; cursor:pointer; color: var(--ink-soft); font-size:13px; }
+.icon-btn{ width:26px; height:26px; border-radius:6px; border:1px solid var(--line); background: var(--paper); display:flex; align-items:center; justify-content:center; cursor:pointer; color: var(--ink-soft); font-size:13px; flex-shrink:0; }
 .icon-btn.danger{ color: var(--rust); }
+.icon-btn.tiny{ width:22px; height:22px; font-size:11px; }
 
 .logtable{ display:flex; flex-direction:column; gap:1px; background: var(--line); border-radius:10px; overflow:hidden; border:1px solid var(--line); }
-.logrow{ display:grid; grid-template-columns: auto auto 1fr auto; gap:8px; align-items:center; background: var(--paper-deep); padding:8px 10px; font-size:12px; }
+.logrow{ display:grid; grid-template-columns: auto auto 1fr auto auto; gap:8px; align-items:center; background: var(--paper-deep); padding:8px 10px; font-size:12px; }
 .log-thumb{ width:26px; height:26px; border-radius:6px; object-fit:cover; border:1px solid var(--line); flex-shrink:0; }
 .log-thumb-placeholder{ display:flex; align-items:center; justify-content:center; background:var(--paper); font-size:13px; }
+.logactions{ display:flex; gap:4px; flex-shrink:0; }
 
 .closing-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
 .closing-row{ display:flex; align-items:center; gap:10px; background: var(--paper-deep); border:1px dashed var(--burn); border-radius:10px; padding:9px 10px; }
@@ -207,18 +212,199 @@ h1{ font-family: var(--display); font-weight:400; letter-spacing:0.01em; font-si
 </style>
 </head>
 <body>
-<div id="app"><div class="loading-screen"><span class="spin">⏳</span><p>Készlet betöltése…</p></div></div>
+<div id="app"><div class="loading-screen"><span class="spin">⏳</span><p>Készlet betöltése… / Bestand wird geladen…</p></div></div>
 
 <script>
 const STORAGE_KEY = "furka-inventory-v1";
-const CATEGORY_META = {
-  kulcstarto: { label: "Kulcstartó", icon: "🔑" },
-  magnes: { label: "Mágnes", icon: "🧲" },
-  konyvjelzo: { label: "Könyvjelző", icon: "🔖" },
-  tabla: { label: "Asztali tábla / dísz", icon: "🖼️" },
-  ajandek: { label: "Ajándékdoboz", icon: "🎁" },
-  egyeb: { label: "Egyéb", icon: "📦" },
+const LANG_KEY = "furka-lang";
+
+/* ---------- i18n ---------- */
+const I18N = {
+  hu: {
+    appTitle: "Souvenirs Készlet",
+    eyebrow: "FURKAPASS · 2429 m",
+    tab_dashboard: "Áttekintés",
+    tab_products: "Termékek",
+    tab_closing: "Zárás",
+    tab_log: "Napló",
+    kpi_today: "Ma eladva",
+    kpi_week: "Ezen a héten",
+    kpi_month: "Ebben a hónapban",
+    kpi_stock: "Készleten",
+    kpi_low: "Alacsony készlet",
+    chart_title: "Bevétel / fogyás",
+    metric_chf: "CHF",
+    metric_db: "Darab",
+    period_daily: "Napi",
+    period_weekly: "Heti",
+    period_monthly: "Havi",
+    history_weekly: "📅 Heti bontás — visszanézés",
+    history_monthly: "🗓️ Havi bontás — visszanézés",
+    no_sale_period: "Nem volt eladás ebben az időszakban.",
+    low_stock_title: "Alacsony készlet",
+    low_stock_ok: "Minden termékből elég van készleten.",
+    products_title: "Termékek",
+    add_product: "+ Új termék",
+    no_products: "Nincs még termék.",
+    per_piece: "/ db",
+    stock_label: "Készleten",
+    stock_value_label: "Készletérték",
+    sell_btn: "🛒 Eladva (1)",
+    restock_btn: "📦 Feltölt",
+    closing_title: "Napi zárás",
+    closing_desc: "Írd be minden termékhez, hány darab van most ténylegesen a pulton. Amit nem érintesz, változatlan marad. A rendszer a különbségből számolja ki, mennyi fogyott, és rögzíti a bevételt.",
+    closing_current: "jelenleg: {{stock}} db · {{price}}/db",
+    closing_submit: "✓ Zárás rögzítése",
+    closing_no_change: "Nem volt változás a záráskor.",
+    closing_done: "Zárás rögzítve: {{qty}} db eladva · {{amount}}",
+    log_title: "Mozgásnapló",
+    log_total_revenue: "Összes bevétel:",
+    log_empty: "Még nincs rögzített mozgás.",
+    log_type_sale: "Eladás",
+    log_type_restock: "Feltöltés",
+    log_edit_title: "Bejegyzés szerkesztése",
+    log_qty_label: "Mennyiség (db)",
+    log_delete_confirm: "Biztosan törlöd ezt a bejegyzést? A készlet automatikusan visszaáll.",
+    log_deleted: "Bejegyzés törölve, készlet korrigálva",
+    log_updated: "Bejegyzés módosítva, készlet korrigálva",
+    deleted_product_name: "(törölt termék)",
+    modal_edit_product: "Termék szerkesztése",
+    modal_add_product: "Új termék",
+    field_photo: "Termékfotó",
+    no_photo: "Nincs fotó",
+    photo_btn: "📷 Fotó",
+    photo_clear: "Törlés",
+    field_name: "Megnevezés",
+    field_name_placeholder: "pl. Kulcstartó – Mormota",
+    field_category: "Kategória",
+    field_price: "Ár (CHF)",
+    field_low: "Riasztási küszöb",
+    field_stock: "Készleten (db)",
+    btn_cancel: "Mégse",
+    btn_save: "✓ Mentés",
+    delete_product_confirm: "Biztosan törlöd ezt a terméket?",
+    product_saved: "Termék mentve",
+    product_deleted: "Termék törölve",
+    photo_error: "Nem sikerült beolvasni a fotót",
+    sold_flash: "Eladva: {{qty}} db · {{amount}}",
+    restocked_flash: "Feltöltve: +{{qty}} db",
+    footer: "Furkapass Souvenirs Készlet · offline PWA",
+    cat_kulcstarto: "Kulcstartó",
+    cat_magnes: "Mágnes",
+    cat_konyvjelzo: "Könyvjelző",
+    cat_tabla: "Asztali tábla / dísz",
+    cat_ajandek: "Ajándékdoboz",
+    cat_egyeb: "Egyéb",
+    week_label: "{{y}}. {{week}}. hét ({{from}}–{{to}})",
+  },
+  de: {
+    appTitle: "Souvenirs Bestand",
+    eyebrow: "FURKAPASS · 2429 m",
+    tab_dashboard: "Übersicht",
+    tab_products: "Produkte",
+    tab_closing: "Abschluss",
+    tab_log: "Protokoll",
+    kpi_today: "Heute verkauft",
+    kpi_week: "Diese Woche",
+    kpi_month: "Diesen Monat",
+    kpi_stock: "Am Lager",
+    kpi_low: "Niedriger Bestand",
+    chart_title: "Umsatz / Verbrauch",
+    metric_chf: "CHF",
+    metric_db: "Stück",
+    period_daily: "Täglich",
+    period_weekly: "Wöchentlich",
+    period_monthly: "Monatlich",
+    history_weekly: "📅 Wochenübersicht — Rückblick",
+    history_monthly: "🗓️ Monatsübersicht — Rückblick",
+    no_sale_period: "Kein Verkauf in diesem Zeitraum.",
+    low_stock_title: "Niedriger Bestand",
+    low_stock_ok: "Von allen Produkten ist genug am Lager.",
+    products_title: "Produkte",
+    add_product: "+ Neues Produkt",
+    no_products: "Noch keine Produkte.",
+    per_piece: "/ Stk",
+    stock_label: "Bestand",
+    stock_value_label: "Bestandswert",
+    sell_btn: "🛒 Verkauft (1)",
+    restock_btn: "📦 Auffüllen",
+    closing_title: "Tagesabschluss",
+    closing_desc: "Trage für jedes Produkt ein, wie viele Stück gerade tatsächlich am Verkaufstisch liegen. Was du nicht änderst, bleibt gleich. Das System berechnet aus der Differenz den Verkauf und erfasst den Umsatz.",
+    closing_current: "aktuell: {{stock}} Stk · {{price}}/Stk",
+    closing_submit: "✓ Abschluss erfassen",
+    closing_no_change: "Keine Änderung beim Abschluss.",
+    closing_done: "Abschluss erfasst: {{qty}} Stk verkauft · {{amount}}",
+    log_title: "Bewegungsprotokoll",
+    log_total_revenue: "Gesamtumsatz:",
+    log_empty: "Noch keine Bewegungen erfasst.",
+    log_type_sale: "Verkauf",
+    log_type_restock: "Auffüllung",
+    log_edit_title: "Eintrag bearbeiten",
+    log_qty_label: "Menge (Stk)",
+    log_delete_confirm: "Diesen Eintrag wirklich löschen? Der Bestand wird automatisch korrigiert.",
+    log_deleted: "Eintrag gelöscht, Bestand korrigiert",
+    log_updated: "Eintrag geändert, Bestand korrigiert",
+    deleted_product_name: "(gelöschtes Produkt)",
+    modal_edit_product: "Produkt bearbeiten",
+    modal_add_product: "Neues Produkt",
+    field_photo: "Produktfoto",
+    no_photo: "Kein Foto",
+    photo_btn: "📷 Foto",
+    photo_clear: "Löschen",
+    field_name: "Bezeichnung",
+    field_name_placeholder: "z. B. Schlüsselanhänger – Murmeltier",
+    field_category: "Kategorie",
+    field_price: "Preis (CHF)",
+    field_low: "Warnschwelle",
+    field_stock: "Bestand (Stk)",
+    btn_cancel: "Abbrechen",
+    btn_save: "✓ Speichern",
+    delete_product_confirm: "Dieses Produkt wirklich löschen?",
+    product_saved: "Produkt gespeichert",
+    product_deleted: "Produkt gelöscht",
+    photo_error: "Foto konnte nicht geladen werden",
+    sold_flash: "Verkauft: {{qty}} Stk · {{amount}}",
+    restocked_flash: "Aufgefüllt: +{{qty}} Stk",
+    footer: "Furkapass Souvenirs Bestand · Offline-PWA",
+    cat_kulcstarto: "Schlüsselanhänger",
+    cat_magnes: "Magnet",
+    cat_konyvjelzo: "Lesezeichen",
+    cat_tabla: "Tischschild / Deko",
+    cat_ajandek: "Geschenkbox",
+    cat_egyeb: "Sonstiges",
+    week_label: "KW {{week}} · {{y}} ({{from}}–{{to}})",
+  }
 };
+
+const MONTHS = {
+  hu: ["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"],
+  de: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"]
+};
+const MONTHS_SHORT = {
+  hu: ["jan","feb","márc","ápr","máj","jún","júl","aug","szep","okt","nov","dec"],
+  de: ["Jan","Feb","März","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
+};
+
+let lang = localStorage.getItem(LANG_KEY) || "hu";
+if(lang !== "hu" && lang !== "de") lang = "hu";
+
+function t(key, vars){
+  let str = (I18N[lang] && I18N[lang][key] !== undefined) ? I18N[lang][key] : key;
+  if(vars){
+    Object.keys(vars).forEach(k=>{ str = str.split("{{"+k+"}}").join(vars[k]); });
+  }
+  return str;
+}
+
+const CATEGORY_META = {
+  kulcstarto: { icon: "🔑" },
+  magnes: { icon: "🧲" },
+  konyvjelzo: { icon: "🔖" },
+  tabla: { icon: "🖼️" },
+  ajandek: { icon: "🎁" },
+  egyeb: { icon: "📦" },
+};
+function catLabel(cat){ return t("cat_" + cat) === ("cat_" + cat) ? t("cat_egyeb") : t("cat_" + cat); }
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -255,8 +441,7 @@ function isoWeekKey(d){
 function monthKey(d){ const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`; }
 function fmtDay(k){ const [,m,d] = k.split("-"); return `${m}.${d}.`; }
 function fmtMonth(k){
-  const names=["jan","feb","márc","ápr","máj","jún","júl","aug","szep","okt","nov","dec"];
-  const [,m]=k.split("-"); return names[parseInt(m,10)-1];
+  const [,m]=k.split("-"); return MONTHS_SHORT[lang][parseInt(m,10)-1];
 }
 function chf(n){ return "CHF " + Number(n).toLocaleString("de-CH",{minimumFractionDigits:0,maximumFractionDigits:2}); }
 function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
@@ -266,6 +451,7 @@ let tab = "dashboard";
 let period = "daily";
 let metric = "chf";
 let modal = null; // {mode:'add'|'edit', product}
+let logModal = null; // {log}
 let toastTimer = null;
 let historyOpen = { weekly:false, monthly:false };
 let expandedPeriod = { weekly:null, monthly:null };
@@ -296,7 +482,7 @@ function sell(id, qty){
   product.stock = Math.max(0, product.stock - qty);
   state.logs.push({ id: uid(), productId: id, type:"sale", qty, price: product.price, ts: Date.now() });
   saveState(); render();
-  flash(`Eladva: ${qty} db · ${chf(qty*product.price)}`);
+  flash(t("sold_flash", { qty, amount: chf(qty*product.price) }));
 }
 function restock(id, qty){
   const product = state.products.find(p=>p.id===id);
@@ -304,7 +490,7 @@ function restock(id, qty){
   product.stock += qty;
   state.logs.push({ id: uid(), productId: id, type:"restock", qty, price: product.price, ts: Date.now() });
   saveState(); render();
-  flash(`Feltöltve: +${qty} db`);
+  flash(t("restocked_flash", { qty }));
 }
 function commitClosing(){
   let totalSoldQty = 0, totalSoldChf = 0, changed = 0;
@@ -327,9 +513,36 @@ function commitClosing(){
     p.stock = newCount;
   });
   saveState();
-  if(changed===0){ flash("Nem volt változás a záráskor."); }
-  else { flash(`Zárás rögzítve: ${totalSoldQty} db eladva · ${chf(totalSoldChf)}`); }
+  if(changed===0){ flash(t("closing_no_change")); }
+  else { flash(t("closing_done", { qty: totalSoldQty, amount: chf(totalSoldChf) })); }
   render();
+}
+
+/* ---------- Log entry edit / delete (with stock correction) ---------- */
+function deleteLogEntry(logId){
+  const log = state.logs.find(l=>l.id===logId);
+  if(!log) return;
+  const product = state.products.find(p=>p.id===log.productId);
+  if(product){
+    if(log.type === "sale") product.stock += log.qty;
+    else product.stock = Math.max(0, product.stock - log.qty);
+  }
+  state.logs = state.logs.filter(l=>l.id!==logId);
+  saveState(); render();
+  flash(t("log_deleted"));
+}
+function updateLogEntry(logId, newQty){
+  const log = state.logs.find(l=>l.id===logId);
+  if(!log || !newQty || newQty <= 0) return;
+  const product = state.products.find(p=>p.id===log.productId);
+  const diff = newQty - log.qty;
+  if(product){
+    if(log.type === "sale") product.stock = Math.max(0, product.stock - diff);
+    else product.stock = Math.max(0, product.stock + diff);
+  }
+  log.qty = newQty;
+  saveState(); render();
+  flash(t("log_updated"));
 }
 
 function compressImage(file, maxSize, quality){
@@ -364,13 +577,13 @@ function upsertProduct(data){
     state.products.push({ ...data, id: uid(), stock: data.stock||0 });
   }
   saveState(); modal=null; render();
-  flash("Termék mentve");
+  flash(t("product_saved"));
 }
 function deleteProduct(id){
   state.products = state.products.filter(p=>p.id!==id);
   state.logs = state.logs.filter(l=>l.productId!==id);
   saveState(); render();
-  flash("Termék törölve");
+  flash(t("product_deleted"));
 }
 
 function computeChartData(){
@@ -427,8 +640,7 @@ function computePeriodHistory(kind, count){
 function periodLabel(kind, key){
   if(kind==="monthly"){
     const [y,m] = key.split("-");
-    const names=["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
-    return `${y}. ${names[parseInt(m,10)-1]}`;
+    return `${y}. ${MONTHS[lang][parseInt(m,10)-1]}`;
   }
   const [y, wpart] = key.split("-H");
   const week = parseInt(wpart,10);
@@ -437,7 +649,7 @@ function periodLabel(kind, key){
   const monday = new Date(simple); monday.setDate(simple.getDate()-dow+1);
   const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
   const fmt = d => `${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}.`;
-  return `${y}. ${week}. hét (${fmt(monday)}–${fmt(sunday)})`;
+  return t("week_label", { y, week, from: fmt(monday), to: fmt(sunday) });
 }
 
 function periodBreakdownRows(periodLogs){
@@ -447,7 +659,7 @@ function periodBreakdownRows(periodLogs){
     map[l.productId].qty += l.qty;
     map[l.productId].chf += l.qty*l.price;
   });
-  const nameOf = id => (state.products.find(p=>p.id===id)||{}).name || "(törölt termék)";
+  const nameOf = id => (state.products.find(p=>p.id===id)||{}).name || t("deleted_product_name");
   return Object.entries(map).map(([id,v])=>({ name:nameOf(id), ...v })).sort((a,b)=>b.chf-a.chf);
 }
 
@@ -464,7 +676,7 @@ function renderHistoryAccordions(){
       </div>
       ${isOpen ? (breakdown.length ? `<div class="hist-breakdown">${breakdown.map(b=>`
         <div class="hist-item"><span>${esc(b.name)}</span><span>${b.qty} db · ${chf(b.chf)}</span></div>
-      `).join("")}</div>` : `<div class="hist-breakdown"><p class="muted" style="margin:2px 0;">Nem volt eladás ebben az időszakban.</p></div>`) : ""}
+      `).join("")}</div>` : `<div class="hist-breakdown"><p class="muted" style="margin:2px 0;">${t("no_sale_period")}</p></div>`) : ""}
     </div>`;
   }).join("");
 
@@ -474,13 +686,13 @@ function renderHistoryAccordions(){
   return `
     <div class="accordion">
       <div class="accordion-head" data-accordion="weekly">
-        <span>📅 Heti bontás — visszanézés</span><span class="accordion-chevron">${historyOpen.weekly?'▲':'▼'}</span>
+        <span>${t("history_weekly")}</span><span class="accordion-chevron">${historyOpen.weekly?'▲':'▼'}</span>
       </div>
       ${historyOpen.weekly ? `<div class="accordion-body">${renderRows("weekly", weekly)}</div>` : ""}
     </div>
     <div class="accordion" style="margin-top:6px;">
       <div class="accordion-head" data-accordion="monthly">
-        <span>🗓️ Havi bontás — visszanézés</span><span class="accordion-chevron">${historyOpen.monthly?'▲':'▼'}</span>
+        <span>${t("history_monthly")}</span><span class="accordion-chevron">${historyOpen.monthly?'▲':'▼'}</span>
       </div>
       ${historyOpen.monthly ? `<div class="accordion-body">${renderRows("monthly", monthly)}</div>` : ""}
     </div>
@@ -492,30 +704,38 @@ function render(){
   const kpis = computeKpis();
   const chartData = computeChartData();
   const maxV = Math.max(1, ...chartData.map(d=>d.v));
+  const dateLocale = lang === "hu" ? "hu-HU" : "de-CH";
 
   app.innerHTML = `
     <div class="header">
       <div class="brandmark">⛰️</div>
       <div>
-        <div class="eyebrow">FURKAPASS · 2429 m</div>
-        <h1>Souvenirs Készlet</h1>
+        <div class="eyebrow">${t("eyebrow")}</div>
+        <h1>${t("appTitle")}</h1>
       </div>
       <div class="header-right">
-        <div class="datebadge">${new Date().toLocaleDateString("hu-HU",{year:"numeric",month:"long",day:"numeric"})}</div>
+        <div class="lang-switch">
+          <button class="lang-btn ${lang==='hu'?'on':''}" data-lang="hu">HU</button>
+          <button class="lang-btn ${lang==='de'?'on':''}" data-lang="de">DE</button>
+        </div>
+        <div class="datebadge">${new Date().toLocaleDateString(dateLocale,{year:"numeric",month:"long",day:"numeric"})}</div>
       </div>
     </div>
     <nav class="tabs">
-      <button class="tab ${tab==='dashboard'?'active':''}" data-tab="dashboard">Áttekintés</button>
-      <button class="tab ${tab==='products'?'active':''}" data-tab="products">Termékek</button>
-      <button class="tab ${tab==='closing'?'active':''}" data-tab="closing">Zárás</button>
-      <button class="tab ${tab==='log'?'active':''}" data-tab="log">Napló</button>
+      <button class="tab ${tab==='dashboard'?'active':''}" data-tab="dashboard">${t("tab_dashboard")}</button>
+      <button class="tab ${tab==='products'?'active':''}" data-tab="products">${t("tab_products")}</button>
+      <button class="tab ${tab==='closing'?'active':''}" data-tab="closing">${t("tab_closing")}</button>
+      <button class="tab ${tab==='log'?'active':''}" data-tab="log">${t("tab_log")}</button>
     </nav>
     <div id="tabcontent"></div>
-    <div class="install-hint">Furkapass Souvenirs Készlet · offline PWA</div>
+    <div class="install-hint">${t("footer")}</div>
   `;
 
   document.querySelectorAll(".tab").forEach(btn=>{
     btn.onclick = ()=>{ tab = btn.dataset.tab; render(); };
+  });
+  document.querySelectorAll("[data-lang]").forEach(btn=>{
+    btn.onclick = ()=>{ lang = btn.dataset.lang; localStorage.setItem(LANG_KEY, lang); render(); };
   });
 
   const content = document.getElementById("tabcontent");
@@ -527,12 +747,13 @@ function render(){
   wireDynamicHandlers();
 
   if(modal) renderModal();
+  if(logModal) renderLogModal();
 
   // toast element (persist across renders)
   if(!document.getElementById("toast")){
-    const t = document.createElement("div");
-    t.id="toast"; t.className="toast"; t.style.display="none";
-    document.body.appendChild(t);
+    const el = document.createElement("div");
+    el.id="toast"; el.className="toast"; el.style.display="none";
+    document.body.appendChild(el);
   }
 }
 
@@ -555,30 +776,30 @@ function renderDashboard(kpis, chartData, maxV){
   <div class="section">
     <div class="kpi-row">
       <div class="kpi"><div class="kpi-icon">💰</div><div>
-        <div class="kpi-value">${chf(kpis.todayChf)}</div><div class="kpi-label">Ma eladva</div>
+        <div class="kpi-value">${chf(kpis.todayChf)}</div><div class="kpi-label">${t("kpi_today")}</div>
         <div class="kpi-sub">${kpis.todayDb} db</div></div></div>
       <div class="kpi"><div class="kpi-icon">📈</div><div>
-        <div class="kpi-value">${chf(kpis.weekChf)}</div><div class="kpi-label">Ezen a héten</div></div></div>
+        <div class="kpi-value">${chf(kpis.weekChf)}</div><div class="kpi-label">${t("kpi_week")}</div></div></div>
       <div class="kpi"><div class="kpi-icon">📈</div><div>
-        <div class="kpi-value">${chf(kpis.monthChf)}</div><div class="kpi-label">Ebben a hónapban</div></div></div>
+        <div class="kpi-value">${chf(kpis.monthChf)}</div><div class="kpi-label">${t("kpi_month")}</div></div></div>
       <div class="kpi"><div class="kpi-icon">📦</div><div>
-        <div class="kpi-value">${totalStock}</div><div class="kpi-label">Készleten</div>
+        <div class="kpi-value">${totalStock}</div><div class="kpi-label">${t("kpi_stock")}</div>
         <div class="kpi-sub">${chf(stockValue)}</div></div></div>
       <div class="kpi ${kpis.low>0?'kpi-warn':''}"><div class="kpi-icon">⚠️</div><div>
-        <div class="kpi-value">${kpis.low}</div><div class="kpi-label">Alacsony készlet</div></div></div>
+        <div class="kpi-value">${kpis.low}</div><div class="kpi-label">${t("kpi_low")}</div></div></div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Bevétel / fogyás</h2>
+      <div class="card-head"><h2>${t("chart_title")}</h2>
         <div class="segmented">
-          <button data-metric="chf" class="${metric==='chf'?'on':''}">CHF</button>
-          <button data-metric="db" class="${metric==='db'?'on':''}">Darab</button>
+          <button data-metric="chf" class="${metric==='chf'?'on':''}">${t("metric_chf")}</button>
+          <button data-metric="db" class="${metric==='db'?'on':''}">${t("metric_db")}</button>
         </div>
       </div>
       <div class="segmented wide">
-        <button data-period="daily" class="${period==='daily'?'on':''}">Napi</button>
-        <button data-period="weekly" class="${period==='weekly'?'on':''}">Heti</button>
-        <button data-period="monthly" class="${period==='monthly'?'on':''}">Havi</button>
+        <button data-period="daily" class="${period==='daily'?'on':''}">${t("period_daily")}</button>
+        <button data-period="weekly" class="${period==='weekly'?'on':''}">${t("period_weekly")}</button>
+        <button data-period="monthly" class="${period==='monthly'?'on':''}">${t("period_monthly")}</button>
       </div>
       <div class="chartbox"><div class="bar-chart">${bars}</div></div>
     </div>
@@ -586,8 +807,8 @@ function renderDashboard(kpis, chartData, maxV){
     <div class="card">${renderHistoryAccordions()}</div>
 
     <div class="card">
-      <div class="card-head"><h2>Alacsony készlet</h2></div>
-      ${lowStock.length===0 ? '<p class="muted">Minden termékből elég van készleten.</p>' :
+      <div class="card-head"><h2>${t("low_stock_title")}</h2></div>
+      ${lowStock.length===0 ? `<p class="muted">${t("low_stock_ok")}</p>` :
         `<div class="lowlist">${lowStock.map(p=>`
           <div class="lowrow"><span class="dot"></span><span class="lowname">${esc(p.name)}</span><span class="lowcount">${p.stock} db</span></div>
         `).join("")}</div>`}
@@ -612,7 +833,7 @@ function renderProducts(){
           ${thumb}
           <div class="pc-titles">
             <div class="pc-name">${esc(p.name)}</div>
-            <div class="pc-price">${chf(p.price)} / db</div>
+            <div class="pc-price">${chf(p.price)} ${t("per_piece")}</div>
           </div>
           <div class="pc-actions">
             <button class="icon-btn" data-edit="${p.id}">✎</button>
@@ -620,30 +841,30 @@ function renderProducts(){
           </div>
         </div>
         <div class="pc-stocks">
-          <div class="stockbox"><div class="stocklabel">Készleten</div><div class="stocknum">${p.stock}</div></div>
-          <div class="stockbox value"><div class="stocklabel">Készletérték</div><div class="stocknum small">${chf(p.stock*p.price)}</div></div>
+          <div class="stockbox"><div class="stocklabel">${t("stock_label")}</div><div class="stocknum">${p.stock}</div></div>
+          <div class="stockbox value"><div class="stocklabel">${t("stock_value_label")}</div><div class="stocknum small">${chf(p.stock*p.price)}</div></div>
         </div>
         <div class="pc-buttons">
-          <button class="btn small" data-sell="${p.id}" ${p.stock<=0?'disabled':''}>🛒 Eladva (1)</button>
+          <button class="btn small" data-sell="${p.id}" ${p.stock<=0?'disabled':''}>${t("sell_btn")}</button>
           <div class="restock-group">
             <input type="number" min="1" value="5" data-restock-input="${p.id}" />
-            <button class="btn small" data-restock="${p.id}">📦 Feltölt</button>
+            <button class="btn small" data-restock="${p.id}">${t("restock_btn")}</button>
           </div>
         </div>
       </div>`;
     }).join("");
     return `<div class="cat-block">
-      <div class="cat-title">${meta.icon} ${meta.label}</div>
+      <div class="cat-title">${meta.icon} ${catLabel(cat)}</div>
       <div class="product-grid">${cards}</div>
     </div>`;
   }).join("");
 
   return `
   <div class="section">
-    <div class="section-head"><h2>Termékek</h2>
-      <button class="btn primary" id="addProductBtn">+ Új termék</button>
+    <div class="section-head"><h2>${t("products_title")}</h2>
+      <button class="btn primary" id="addProductBtn">${t("add_product")}</button>
     </div>
-    ${blocks || '<p class="muted">Nincs még termék.</p>'}
+    ${blocks || `<p class="muted">${t("no_products")}</p>`}
   </div>`;
 }
 
@@ -662,37 +883,38 @@ function renderClosing(){
         ${thumb}
         <div class="cl-info">
           <div class="cl-name">${esc(p.name)}</div>
-          <div class="cl-sub">jelenleg: ${p.stock} db · ${chf(p.price)}/db</div>
+          <div class="cl-sub">${t("closing_current", { stock: p.stock, price: chf(p.price) })}</div>
         </div>
         <input type="number" min="0" class="cl-input" id="closing-input-${p.id}" value="${p.stock}" />
       </div>`;
     }).join("");
     return `<div class="cat-block">
-      <div class="cat-title">${meta.icon} ${meta.label}</div>
+      <div class="cat-title">${meta.icon} ${catLabel(cat)}</div>
       <div class="closing-list">${rows}</div>
     </div>`;
   }).join("");
 
   return `
   <div class="section">
-    <div class="section-head"><h2>Napi zárás</h2></div>
-    <p class="muted">Írd be minden termékhez, hány darab van most ténylegesen a pulton. Amit nem érintesz, változatlan marad. A rendszer a különbségből számolja ki, mennyi fogyott, és rögzíti a bevételt.</p>
-    ${blocks || '<p class="muted">Nincs még termék.</p>'}
-    <button class="btn primary closing-submit" id="commitClosingBtn">✓ Zárás rögzítése</button>
+    <div class="section-head"><h2>${t("closing_title")}</h2></div>
+    <p class="muted">${t("closing_desc")}</p>
+    ${blocks || `<p class="muted">${t("no_products")}</p>`}
+    <button class="btn primary closing-submit" id="commitClosingBtn">${t("closing_submit")}</button>
   </div>`;
 }
 
 function renderLog(){
   const productOf = id => state.products.find(p=>p.id===id);
-  const nameOf = id => (productOf(id)||{}).name || "(törölt termék)";
+  const nameOf = id => (productOf(id)||{}).name || t("deleted_product_name");
   const sorted = [...state.logs].sort((a,b)=>b.ts-a.ts).slice(0,200);
-  const typeLabel = { sale:"Eladás", restock:"Feltöltés" };
+  const typeLabel = { sale: t("log_type_sale"), restock: t("log_type_restock") };
   const totalRevenue = state.logs.filter(l=>l.type==="sale").reduce((s,l)=>s+l.qty*l.price,0);
+  const timeLocale = lang === "hu" ? "hu-HU" : "de-CH";
 
   const rows = sorted.map(l=>{
     const sign = l.type==="sale" ? "-" : "+";
     const qtyLine = `${sign} ${l.qty} db` + (l.type==="sale" ? ` · ${chf(l.qty*l.price)}` : "");
-    const time = new Date(l.ts).toLocaleString("hu-HU",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+    const time = new Date(l.ts).toLocaleString(timeLocale,{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
     const prod = productOf(l.productId);
     const thumb = prod && prod.photo ? `<img class="log-thumb" src="${prod.photo}" alt="" />` : `<div class="log-thumb log-thumb-placeholder">${prod ? (CATEGORY_META[prod.category]||CATEGORY_META.egyeb).icon : "📦"}</div>`;
     return `<div class="logrow">
@@ -700,15 +922,19 @@ function renderLog(){
       <span class="logtype ${l.type}">${typeLabel[l.type]}</span>
       <span class="logname">${esc(nameOf(l.productId))}</span>
       <span class="logright"><span class="logqty">${qtyLine}</span><span class="logtime">${time}</span></span>
+      <span class="logactions">
+        <button class="icon-btn tiny" data-logedit="${l.id}" title="${t('btn_save')}">✎</button>
+        <button class="icon-btn tiny danger" data-logdelete="${l.id}" title="${t('log_delete_confirm')}">🗑</button>
+      </span>
     </div>`;
   }).join("");
 
   return `
   <div class="section">
-    <div class="section-head"><h2>Mozgásnapló</h2>
-      <div class="revenue-badge">Összes bevétel: ${chf(totalRevenue)}</div>
+    <div class="section-head"><h2>${t("log_title")}</h2>
+      <div class="revenue-badge">${t("log_total_revenue")} ${chf(totalRevenue)}</div>
     </div>
-    ${sorted.length===0 ? '<p class="muted">Még nincs rögzített mozgás.</p>' : `<div class="logtable">${rows}</div>`}
+    ${sorted.length===0 ? `<p class="muted">${t("log_empty")}</p>` : `<div class="logtable">${rows}</div>`}
   </div>`;
 }
 
@@ -726,7 +952,7 @@ function wireDynamicHandlers(){
     render();
   });
   document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>{
-    if(confirm("Biztosan törlöd ezt a terméket?")) deleteProduct(b.dataset.delete);
+    if(confirm(t("delete_product_confirm"))) deleteProduct(b.dataset.delete);
   });
   const addBtn = document.getElementById("addProductBtn");
   if(addBtn) addBtn.onclick = ()=>{ modal = { mode:"add", product:null }; render(); };
@@ -745,47 +971,56 @@ function wireDynamicHandlers(){
     expandedPeriod[kind] = expandedPeriod[kind]===key ? null : key;
     render();
   });
+
+  // log entry edit / delete
+  document.querySelectorAll("[data-logedit]").forEach(b=>b.onclick=()=>{
+    logModal = { log: state.logs.find(l=>l.id===b.dataset.logedit) };
+    render();
+  });
+  document.querySelectorAll("[data-logdelete]").forEach(b=>b.onclick=()=>{
+    if(confirm(t("log_delete_confirm"))) deleteLogEntry(b.dataset.logdelete);
+  });
 }
 
 function renderModal(){
   let host = document.getElementById("modalHost");
   if(!host){ host = document.createElement("div"); host.id="modalHost"; document.body.appendChild(host); }
   const p = modal.product || { name:"", category:"kulcstarto", price:8, stock:0, lowThreshold:3, photo:null };
-  const catOptions = Object.entries(CATEGORY_META).map(([k,v])=>`<option value="${k}" ${p.category===k?'selected':''}>${v.label}</option>`).join("");
+  const catOptions = Object.entries(CATEGORY_META).map(([k])=>`<option value="${k}" ${p.category===k?'selected':''}>${catLabel(k)}</option>`).join("");
   pendingPhoto = p.photo || null;
 
   const photoPreviewHtml = () => pendingPhoto
     ? `<img src="${pendingPhoto}" class="photo-preview-img" alt="" />`
-    : `<div class="photo-preview-empty">Nincs fotó</div>`;
+    : `<div class="photo-preview-empty">${t("no_photo")}</div>`;
 
   host.innerHTML = `
   <div class="modal-backdrop" id="modalBackdrop">
     <div class="modal" id="modalBox">
-      <div class="modal-head"><h3>${modal.mode==="edit"?"Termék szerkesztése":"Új termék"}</h3>
+      <div class="modal-head"><h3>${modal.mode==="edit"?t("modal_edit_product"):t("modal_add_product")}</h3>
         <button class="icon-btn" id="modalClose">✕</button></div>
       <div class="modal-body">
         <div class="field-block">
-          <span class="field-label">Termékfotó</span>
+          <span class="field-label">${t("field_photo")}</span>
           <div class="photo-row">
             <div id="photoPreview">${photoPreviewHtml()}</div>
             <div class="photo-buttons" id="photoButtons">
-              <label class="btn small photo-pick-btn" for="f-photo">📷 Fotó</label>
+              <label class="btn small photo-pick-btn" for="f-photo">${t("photo_btn")}</label>
               <input type="file" accept="image/*" capture="environment" id="f-photo" style="display:none" />
-              ${pendingPhoto ? `<button type="button" class="btn small" id="f-photo-clear">Törlés</button>` : ""}
+              ${pendingPhoto ? `<button type="button" class="btn small" id="f-photo-clear">${t("photo_clear")}</button>` : ""}
             </div>
           </div>
         </div>
-        <label>Megnevezés<input id="f-name" value="${esc(p.name)}" placeholder="pl. Kulcstartó – Mormota" /></label>
-        <label>Kategória<select id="f-category">${catOptions}</select></label>
+        <label>${t("field_name")}<input id="f-name" value="${esc(p.name)}" placeholder="${t('field_name_placeholder')}" /></label>
+        <label>${t("field_category")}<select id="f-category">${catOptions}</select></label>
         <div class="form-row">
-          <label>Ár (CHF)<input id="f-price" type="number" min="0" value="${p.price}" /></label>
-          <label>Riasztási küszöb<input id="f-low" type="number" min="0" value="${p.lowThreshold}" /></label>
+          <label>${t("field_price")}<input id="f-price" type="number" min="0" value="${p.price}" /></label>
+          <label>${t("field_low")}<input id="f-low" type="number" min="0" value="${p.lowThreshold}" /></label>
         </div>
-        <label>Készleten (db)<input id="f-stock" type="number" min="0" value="${p.stock}" /></label>
+        <label>${t("field_stock")}<input id="f-stock" type="number" min="0" value="${p.stock}" /></label>
       </div>
       <div class="modal-foot">
-        <button class="btn" id="modalCancel">Mégse</button>
-        <button class="btn primary" id="modalSave">✓ Mentés</button>
+        <button class="btn" id="modalCancel">${t("btn_cancel")}</button>
+        <button class="btn primary" id="modalSave">${t("btn_save")}</button>
       </div>
     </div>
   </div>`;
@@ -814,11 +1049,11 @@ function renderModal(){
         document.getElementById("photoPreview").innerHTML = photoPreviewHtml();
         if(!document.getElementById("f-photo-clear")){
           const btn = document.createElement("button");
-          btn.type = "button"; btn.className = "btn small"; btn.id = "f-photo-clear"; btn.textContent = "Törlés";
+          btn.type = "button"; btn.className = "btn small"; btn.id = "f-photo-clear"; btn.textContent = t("photo_clear");
           document.getElementById("photoButtons").appendChild(btn);
           wirePhotoClear();
         }
-      }catch(e){ flash("Nem sikerült beolvasni a fotót"); }
+      }catch(e){ flash(t("photo_error")); }
     };
   }
 
@@ -836,6 +1071,43 @@ function renderModal(){
     });
     pendingPhoto = null;
     host.innerHTML = "";
+  };
+}
+
+/* ---------- Log edit modal ---------- */
+function renderLogModal(){
+  let host = document.getElementById("logModalHost");
+  if(!host){ host = document.createElement("div"); host.id="logModalHost"; document.body.appendChild(host); }
+  const l = logModal.log;
+  if(!l){ host.innerHTML = ""; return; }
+  const product = state.products.find(p=>p.id===l.productId);
+  const name = product ? product.name : t("deleted_product_name");
+  const typeLabel = l.type === "sale" ? t("log_type_sale") : t("log_type_restock");
+
+  host.innerHTML = `
+  <div class="modal-backdrop" id="logModalBackdrop">
+    <div class="modal" id="logModalBox">
+      <div class="modal-head"><h3>${t("log_edit_title")}</h3>
+        <button class="icon-btn" id="logModalClose">✕</button></div>
+      <div class="modal-body">
+        <label>${typeLabel}<input value="${esc(name)}" disabled /></label>
+        <label>${t("log_qty_label")}<input id="lm-qty" type="number" min="1" value="${l.qty}" /></label>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="logModalCancel">${t("btn_cancel")}</button>
+        <button class="btn primary" id="logModalSave">${t("btn_save")}</button>
+      </div>
+    </div>
+  </div>`;
+
+  const close = ()=>{ logModal=null; host.innerHTML=""; };
+  document.getElementById("logModalBackdrop").onclick = (e)=>{ if(e.target.id==="logModalBackdrop") close(); };
+  document.getElementById("logModalClose").onclick = close;
+  document.getElementById("logModalCancel").onclick = close;
+  document.getElementById("logModalSave").onclick = ()=>{
+    const newQty = Math.max(1, parseInt(document.getElementById("lm-qty").value,10) || 1);
+    updateLogEntry(l.id, newQty);
+    close();
   };
 }
 
