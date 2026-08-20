@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#2C2620" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Furka Készlet" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<title>Furkapass Souvenirs — Készlet</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fjalla+One&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root{
+  --paper:#F3ECDD;
+  --paper-deep:#E9DFC9;
+  --ink:#2C2620;
+  --ink-soft:#6B6255;
+  --burn:#8B5A2B;
+  --burn-dark:#5F3C1A;
+  --rust:#B5502E;
+  --line:#D9CBA9;
+  --display: 'Fjalla One', sans-serif;
+  --body: 'IBM Plex Sans', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family: var(--body);
+  color: var(--ink);
+  background: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, rgba(139,90,43,0.06) 1px, transparent 0);
+  background-size: 14px 14px;
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+#app{
+  padding: calc(18px + env(safe-area-inset-top, 0)) 16px 60px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.loading-screen{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:10px; min-height:100vh; color: var(--ink-soft); font-family: var(--mono);
+}
+.spin{ animation: spin 1s linear infinite; display:inline-block; }
+@keyframes spin{ to { transform: rotate(360deg); } }
+
+.header{ display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.brandmark{
+  width:40px; height:40px; border-radius:8px; background: var(--ink); color: var(--paper);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:20px;
+}
+.eyebrow{ font-family: var(--mono); font-size:10.5px; letter-spacing:0.14em; color: var(--burn-dark); text-transform:uppercase; }
+h1{ font-family: var(--display); font-weight:400; letter-spacing:0.01em; font-size:26px; margin:1px 0 0; }
+.header-right{ margin-left:auto; }
+.datebadge{
+  font-family: var(--mono); font-size:11px; color: var(--ink-soft);
+  background: var(--paper-deep); border:1px solid var(--line); padding:5px 9px; border-radius:6px; white-space:nowrap;
+}
+
+.tabs{ display:flex; gap:4px; background: var(--paper-deep); border:1px solid var(--line); border-radius:10px; padding:4px; margin-bottom:16px; }
+.tab{
+  flex:1; padding:9px 8px; border:none; background:transparent; cursor:pointer;
+  font-family: var(--body); font-weight:600; font-size:13px; color: var(--ink-soft); border-radius:7px;
+}
+.tab.active{ background: var(--ink); color: var(--paper); }
+
+.section{ display:flex; flex-direction:column; gap:14px; }
+.section-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+.section-head h2{ font-family: var(--display); font-weight:400; font-size:19px; margin:0; }
+
+.revenue-badge{
+  font-family: var(--mono); font-size:12px; background: var(--paper-deep);
+  border:1px solid var(--line); padding:5px 10px; border-radius:7px; color: var(--burn-dark); font-weight:600;
+}
+
+.kpi-row{ display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; }
+.kpi{ background: var(--paper-deep); border:1px solid var(--line); border-radius:10px; padding:10px 12px; display:flex; align-items:flex-start; gap:9px; }
+.kpi-warn{ border-color: var(--rust); background: #F4E1D6; }
+.kpi-icon{ width:26px; height:26px; border-radius:6px; background: var(--ink); color: var(--paper); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; }
+.kpi-warn .kpi-icon{ background: var(--rust); }
+.kpi-value{ font-family: var(--mono); font-size:16px; font-weight:600; line-height:1.2; }
+.kpi-label{ font-size:11.5px; color: var(--ink-soft); margin-top:3px; }
+.kpi-sub{ font-size:10.5px; color: var(--ink-soft); font-family: var(--mono); margin-top:2px; }
+
+.card{ background: var(--paper-deep); border:1px solid var(--line); border-radius:12px; padding:14px; }
+.card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.card-head h2{ font-family: var(--display); font-weight:400; font-size:17px; margin:0; }
+
+.segmented{ display:flex; background: var(--paper); border:1px solid var(--line); border-radius:8px; padding:3px; }
+.segmented.wide{ margin-bottom:8px; }
+.segmented button{ flex:1; border:none; background:transparent; padding:5px 10px; font-size:11.5px; font-family: var(--mono); cursor:pointer; border-radius:6px; color: var(--ink-soft); }
+.segmented button.on{ background: var(--burn); color: var(--paper); }
+
+.chartbox{ margin-top:8px; }
+.bar-chart{ display:flex; align-items:flex-end; gap:3px; height:200px; padding-top:10px; }
+.bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
+.bar-track{ width:100%; height:150px; display:flex; align-items:flex-end; }
+.bar-fill{ width:100%; background: var(--burn); border-radius:3px 3px 0 0; min-height:2px; transition: height .2s; }
+.bar-label{ font-family: var(--mono); font-size:8.5px; color: var(--ink-soft); white-space:nowrap; }
+.bar-value{ font-family: var(--mono); font-size:8px; color: var(--burn-dark); }
+
+.muted{ color: var(--ink-soft); font-size:13px; }
+
+.accordion-head{ display:flex; align-items:center; justify-content:space-between; padding:6px 2px; cursor:pointer; font-weight:600; font-size:13.5px; }
+.accordion-chevron{ font-family: var(--mono); font-size:11px; color: var(--ink-soft); }
+.accordion-body{ display:flex; flex-direction:column; gap:0; margin-top:2px; max-height:340px; overflow-y:auto; border-top:1px solid var(--line); }
+.hist-row{ border-bottom:1px solid var(--line); }
+.hist-row:last-child{ border-bottom:none; }
+.hist-row-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 4px; cursor:pointer; }
+.hist-period{ font-size:12px; flex:1; }
+.hist-totals{ font-family: var(--mono); font-size:11px; color: var(--burn-dark); white-space:nowrap; }
+.hist-chevron{ font-family: var(--mono); font-size:13px; color: var(--ink-soft); width:14px; text-align:center; flex-shrink:0; }
+.hist-breakdown{ background: var(--paper); border-radius:7px; padding:6px 9px; margin:2px 4px 8px; display:flex; flex-direction:column; gap:4px; }
+.hist-item{ display:flex; justify-content:space-between; gap:8px; font-size:11.5px; }
+.hist-item span:first-child{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hist-item span:last-child{ font-family: var(--mono); color: var(--ink-soft); white-space:nowrap; }
+
+.lowlist{ display:flex; flex-direction:column; gap:6px; }
+.lowrow{ display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.dot{ width:6px; height:6px; border-radius:50%; background: var(--rust); flex-shrink:0; }
+.lowname{ flex:1; }
+.lowcount{ font-family: var(--mono); font-size:11px; color: var(--ink-soft); }
+
+.cat-block{ margin-top:2px; }
+.cat-title{ display:flex; align-items:center; gap:6px; font-family: var(--mono); font-size:11.5px; letter-spacing:0.06em; text-transform:uppercase; color: var(--burn-dark); margin-bottom:8px; }
+.product-grid{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+
+.product-card{ background: var(--paper-deep); border:1px dashed var(--burn); border-radius:10px; padding:11px 12px; }
+.product-card.low{ border-style: solid; border-color: var(--rust); }
+.pc-top{ display:flex; align-items:flex-start; gap:9px; }
+.pc-titles{ flex:1; min-width:0; }
+.pc-name{ font-weight:600; font-size:13.5px; line-height:1.3; }
+.pc-thumb{ width:48px; height:48px; border-radius:8px; object-fit:cover; flex-shrink:0; border:1px solid var(--line); }
+.pc-thumb-placeholder{ display:flex; align-items:center; justify-content:center; background:var(--paper); font-size:20px; }
+.pc-actions{ display:flex; gap:4px; flex-shrink:0; }
+.pc-price{ font-family: var(--mono); font-size:11px; color: var(--ink-soft); margin-top:2px; }
+.pc-stocks{ display:flex; gap:8px; margin:9px 0; }
+.stockbox{ flex:1; background: var(--paper); border:1px solid var(--line); border-radius:7px; padding:6px 8px; text-align:center; }
+.stockbox.value{ background: #EDE3CC; }
+.stocklabel{ font-size:9.5px; color: var(--ink-soft); text-transform:uppercase; letter-spacing:0.05em; }
+.stocknum{ font-family: var(--mono); font-size:17px; font-weight:600; }
+.stocknum.small{ font-size:12px; }
+.pc-buttons{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.restock-group{ display:flex; gap:5px; flex:1; }
+.restock-group input{ width:44px; text-align:center; font-family: var(--mono); font-size:12px; border:1px solid var(--line); border-radius:7px; background: var(--paper); color: var(--ink); padding:6px 4px; }
+
+.btn{ display:inline-flex; align-items:center; gap:5px; padding:7px 11px; border-radius:7px; border:1px solid var(--line); background: var(--paper); color: var(--ink); font-family: var(--body); font-weight:600; font-size:12.5px; cursor:pointer; }
+.btn:disabled{ opacity:0.4; cursor:not-allowed; }
+.btn.small{ padding:6px 9px; font-size:11.5px; flex:1; justify-content:center; white-space:nowrap; }
+.btn.primary{ background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+.icon-btn{ width:26px; height:26px; border-radius:6px; border:1px solid var(--line); background: var(--paper); display:flex; align-items:center; justify-content:center; cursor:pointer; color: var(--ink-soft); font-size:13px; }
+.icon-btn.danger{ color: var(--rust); }
+
+.logtable{ display:flex; flex-direction:column; gap:1px; background: var(--line); border-radius:10px; overflow:hidden; border:1px solid var(--line); }
+.logrow{ display:grid; grid-template-columns: auto auto 1fr auto; gap:8px; align-items:center; background: var(--paper-deep); padding:8px 10px; font-size:12px; }
+.log-thumb{ width:26px; height:26px; border-radius:6px; object-fit:cover; border:1px solid var(--line); flex-shrink:0; }
+.log-thumb-placeholder{ display:flex; align-items:center; justify-content:center; background:var(--paper); font-size:13px; }
+
+.closing-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+.closing-row{ display:flex; align-items:center; gap:10px; background: var(--paper-deep); border:1px dashed var(--burn); border-radius:10px; padding:9px 10px; }
+.cl-thumb{ width:44px; height:44px; border-radius:8px; object-fit:cover; flex-shrink:0; border:1px solid var(--line); }
+.cl-thumb-placeholder{ display:flex; align-items:center; justify-content:center; background:var(--paper); font-size:19px; }
+.cl-info{ flex:1; min-width:0; }
+.cl-name{ font-weight:600; font-size:13px; line-height:1.3; }
+.cl-sub{ font-family: var(--mono); font-size:10.5px; color: var(--ink-soft); margin-top:2px; }
+.cl-input{ width:64px; text-align:center; font-family: var(--mono); font-size:15px; padding:8px 4px; border-radius:7px; border:1px solid var(--line); background: var(--paper); color: var(--ink); flex-shrink:0; }
+.closing-submit{ width:100%; justify-content:center; padding:11px; font-size:13.5px; margin-top:4px; }
+
+.field-block{ display:flex; flex-direction:column; gap:4px; }
+.field-label{ font-size:12px; color: var(--ink-soft); font-weight:600; }
+.photo-row{ display:flex; align-items:center; gap:10px; }
+.photo-buttons{ display:flex; flex-direction:column; gap:6px; }
+.photo-pick-btn{ display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.photo-preview-img{ width:56px; height:56px; border-radius:8px; object-fit:cover; border:1px solid var(--line); }
+.photo-preview-empty{ width:56px; height:56px; border-radius:8px; border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; font-size:9px; color: var(--ink-soft); text-align:center; }
+.logtype{ font-family: var(--mono); font-size:10px; text-transform:uppercase; padding:2px 6px; border-radius:4px; white-space:nowrap; }
+.logtype.sale{ background:#E4D2C6; color: var(--rust); }
+.logtype.restock{ background:#DCE6DE; color:#2E5C3A; }
+.logname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.logright{ display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+.logqty{ font-family: var(--mono); font-weight:600; white-space:nowrap; font-size:11.5px; }
+.logtime{ font-family: var(--mono); font-size:9.5px; color: var(--ink-soft); }
+
+.modal-backdrop{ position:fixed; inset:0; background: rgba(44,38,32,0.5); display:flex; align-items:flex-end; justify-content:center; z-index:50; }
+.modal{ background: var(--paper); border-radius:16px 16px 0 0; width:100%; max-width:720px; padding:16px; max-height:88vh; overflow-y:auto; border-top:1px solid var(--line); padding-bottom: calc(16px + env(safe-area-inset-bottom, 0)); }
+.modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.modal-head h3{ font-family: var(--display); font-weight:400; font-size:18px; margin:0; }
+.modal-body{ display:flex; flex-direction:column; gap:10px; }
+.modal-body label{ display:flex; flex-direction:column; gap:4px; font-size:12px; color: var(--ink-soft); font-weight:600; }
+.modal-body input, .modal-body select{ font-family: var(--body); font-size:16px; padding:8px 10px; border-radius:7px; border:1px solid var(--line); background: var(--paper-deep); color: var(--ink); }
+.form-row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+.modal-foot{ display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+
+.toast{ position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom, 0)); transform:translateX(-50%); background: var(--ink); color: var(--paper); padding:9px 16px; border-radius:8px; font-size:12.5px; font-family: var(--mono); z-index:60; }
+.install-hint{ font-size:11px; color: var(--ink-soft); text-align:center; margin-top:18px; font-family: var(--mono); }
+
+@media (min-width:520px){
+  .kpi-row{ grid-template-columns: repeat(3, 1fr); }
+  .product-grid{ display:grid; grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading-screen"><span class="spin">⏳</span><p>Készlet betöltése…</p></div></div>
+
+<script>
+const STORAGE_KEY = "furka-inventory-v1";
+const CATEGORY_META = {
+  kulcstarto: { label: "Kulcstartó", icon: "🔑" },
+  magnes: { label: "Mágnes", icon: "🧲" },
+  konyvjelzo: { label: "Könyvjelző", icon: "🔖" },
+  tabla: { label: "Asztali tábla / dísz", icon: "🖼️" },
+  ajandek: { label: "Ajándékdoboz", icon: "🎁" },
+  egyeb: { label: "Egyéb", icon: "📦" },
+};
+
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+function defaultProducts() {
+  const p = (name, category, price, stock) => ({ id: uid(), name, category, price, stock, lowThreshold: 3, photo: null });
+  return [
+    p('Kulcstartó – Furkapass kör "Swiss Alps"', "kulcstarto", 8, 10),
+    p("Kulcstartó – Mormota táj", "kulcstarto", 8, 8),
+    p("Kulcstartó – Kőszáli kecske", "kulcstarto", 9, 6),
+    p("Kulcstartó – Nap-hegyek kör", "kulcstarto", 8, 9),
+    p("Kulcstartó – Furkapass pecsét (Schweizer Alpen)", "kulcstarto", 8, 8),
+    p("Mágnes – Mormota táj", "magnes", 8, 9),
+    p("Mágnes – Hegycsúcs (Furkapass 2429m)", "magnes", 8, 8),
+    p("Könyvjelző – Kanyargós út (zöld bojt)", "konyvjelzo", 12, 6),
+    p("Könyvjelző – Kanyargós út (arany bojt)", "konyvjelzo", 12, 5),
+    p("Asztali tábla – Hotel Tiefenbach", "tabla", 22, 4),
+    p("Asztali tábla – Dammastock 3630m", "tabla", 22, 4),
+    p("Asztali tábla – Klein Furkahorn 3026m", "tabla", 22, 3),
+    p("Dísztábla – Tehén motívum", "tabla", 18, 3),
+    p("Rauchquarz ajándékdoboz", "ajandek", 39, 5),
+  ];
+}
+
+function defaultState(){ return { products: defaultProducts(), logs: [] }; }
+
+function todayKey(d){ const dt = new Date(d); return dt.toISOString().slice(0,10); }
+function isoWeekKey(d){
+  const dt = new Date(d); dt.setHours(0,0,0,0);
+  dt.setDate(dt.getDate() + 3 - ((dt.getDay()+6)%7));
+  const week1 = new Date(dt.getFullYear(),0,4);
+  const weekNo = 1 + Math.round(((dt-week1)/86400000 - 3 + ((week1.getDay()+6)%7))/7);
+  return `${dt.getFullYear()}-H${String(weekNo).padStart(2,"0")}`;
+}
+function monthKey(d){ const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`; }
+function fmtDay(k){ const [,m,d] = k.split("-"); return `${m}.${d}.`; }
+function fmtMonth(k){
+  const names=["jan","feb","márc","ápr","máj","jún","júl","aug","szep","okt","nov","dec"];
+  const [,m]=k.split("-"); return names[parseInt(m,10)-1];
+}
+function chf(n){ return "CHF " + Number(n).toLocaleString("de-CH",{minimumFractionDigits:0,maximumFractionDigits:2}); }
+function esc(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+let state = null;
+let tab = "dashboard";
+let period = "daily";
+let metric = "chf";
+let modal = null; // {mode:'add'|'edit', product}
+let toastTimer = null;
+let historyOpen = { weekly:false, monthly:false };
+let expandedPeriod = { weekly:null, monthly:null };
+let pendingPhoto = null;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    state = raw ? JSON.parse(raw) : defaultState();
+  }catch(e){ state = defaultState(); }
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+function flash(msg){
+  const el = document.getElementById("toast");
+  if(!el) return;
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.display = "none"; }, 1800);
+}
+
+function sell(id, qty){
+  const product = state.products.find(p=>p.id===id);
+  if(!product || product.stock < qty) return;
+  product.stock = Math.max(0, product.stock - qty);
+  state.logs.push({ id: uid(), productId: id, type:"sale", qty, price: product.price, ts: Date.now() });
+  saveState(); render();
+  flash(`Eladva: ${qty} db · ${chf(qty*product.price)}`);
+}
+function restock(id, qty){
+  const product = state.products.find(p=>p.id===id);
+  if(!product || !qty || qty<=0) return;
+  product.stock += qty;
+  state.logs.push({ id: uid(), productId: id, type:"restock", qty, price: product.price, ts: Date.now() });
+  saveState(); render();
+  flash(`Feltöltve: +${qty} db`);
+}
+function commitClosing(){
+  let totalSoldQty = 0, totalSoldChf = 0, changed = 0;
+  state.products.forEach(p=>{
+    const input = document.getElementById("closing-input-"+p.id);
+    if(!input) return;
+    const raw = input.value;
+    if(raw === "" || raw === null) return;
+    const newCount = Math.max(0, parseInt(raw,10));
+    if(isNaN(newCount) || newCount === p.stock) return;
+    changed++;
+    if(newCount < p.stock){
+      const sold = p.stock - newCount;
+      state.logs.push({ id: uid(), productId: p.id, type:"sale", qty: sold, price: p.price, ts: Date.now() });
+      totalSoldQty += sold; totalSoldChf += sold * p.price;
+    } else {
+      const gained = newCount - p.stock;
+      state.logs.push({ id: uid(), productId: p.id, type:"restock", qty: gained, price: p.price, ts: Date.now() });
+    }
+    p.stock = newCount;
+  });
+  saveState();
+  if(changed===0){ flash("Nem volt változás a záráskor."); }
+  else { flash(`Zárás rögzítve: ${totalSoldQty} db eladva · ${chf(totalSoldChf)}`); }
+  render();
+}
+
+function compressImage(file, maxSize, quality){
+  maxSize = maxSize || 220; quality = quality || 0.72;
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxSize){ h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if(h > maxSize){ w = Math.round(w * maxSize / h); h = maxSize; } }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function upsertProduct(data){
+  if(data.id){
+    const idx = state.products.findIndex(p=>p.id===data.id);
+    if(idx>-1) state.products[idx] = {...state.products[idx], ...data};
+  } else {
+    state.products.push({ ...data, id: uid(), stock: data.stock||0 });
+  }
+  saveState(); modal=null; render();
+  flash("Termék mentve");
+}
+function deleteProduct(id){
+  state.products = state.products.filter(p=>p.id!==id);
+  state.logs = state.logs.filter(l=>l.productId!==id);
+  saveState(); render();
+  flash("Termék törölve");
+}
+
+function computeChartData(){
+  const sales = state.logs.filter(l=>l.type==="sale");
+  const valueOf = l => metric==="chf" ? l.qty*l.price : l.qty;
+  if(period==="daily"){
+    const days=[]; for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(todayKey(d)); }
+    const map = Object.fromEntries(days.map(k=>[k,0]));
+    sales.forEach(l=>{ const k=todayKey(l.ts); if(k in map) map[k]+=valueOf(l); });
+    return days.map(k=>({label:fmtDay(k), v:map[k]}));
+  }
+  if(period==="weekly"){
+    const weeks=[]; for(let i=7;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i*7); weeks.push(isoWeekKey(d)); }
+    const uniq=[...new Set(weeks)];
+    const map = Object.fromEntries(uniq.map(k=>[k,0]));
+    sales.forEach(l=>{ const k=isoWeekKey(l.ts); if(k in map) map[k]+=valueOf(l); });
+    return uniq.map(k=>({label:k.split("-")[1], v:map[k]}));
+  }
+  const months=[]; for(let i=11;i>=0;i--){ const d=new Date(); d.setMonth(d.getMonth()-i); months.push(monthKey(d)); }
+  const map = Object.fromEntries(months.map(k=>[k,0]));
+  sales.forEach(l=>{ const k=monthKey(l.ts); if(k in map) map[k]+=valueOf(l); });
+  return months.map(k=>({label:fmtMonth(k), v:map[k]}));
+}
+
+function computeKpis(){
+  const sales = state.logs.filter(l=>l.type==="sale");
+  const now = new Date();
+  const tKey=todayKey(now), wKey=isoWeekKey(now), mKey=monthKey(now);
+  const today = sales.filter(l=>todayKey(l.ts)===tKey);
+  const week = sales.filter(l=>isoWeekKey(l.ts)===wKey);
+  const month = sales.filter(l=>monthKey(l.ts)===mKey);
+  const sumDb = a=>a.reduce((s,l)=>s+l.qty,0);
+  const sumChf = a=>a.reduce((s,l)=>s+l.qty*l.price,0);
+  const low = state.products.filter(p=>p.stock<=p.lowThreshold).length;
+  return { todayDb:sumDb(today), todayChf:sumChf(today), weekChf:sumChf(week), monthChf:sumChf(month), low };
+}
+
+function computePeriodHistory(kind, count){
+  const keys = [];
+  if(kind==="weekly"){
+    for(let i=0;i<count;i++){ const d=new Date(); d.setDate(d.getDate()-i*7); const k=isoWeekKey(d); if(!keys.includes(k)) keys.push(k); }
+  } else {
+    for(let i=0;i<count;i++){ const d=new Date(); d.setMonth(d.getMonth()-i); const k=monthKey(d); if(!keys.includes(k)) keys.push(k); }
+  }
+  const sales = state.logs.filter(l=>l.type==="sale");
+  return keys.map(k=>{
+    const inPeriod = sales.filter(l => (kind==="weekly" ? isoWeekKey(l.ts) : monthKey(l.ts)) === k);
+    const qty = inPeriod.reduce((s,l)=>s+l.qty,0);
+    const chfVal = inPeriod.reduce((s,l)=>s+l.qty*l.price,0);
+    return { key:k, qty, chf:chfVal, logs:inPeriod };
+  });
+}
+
+function periodLabel(kind, key){
+  if(kind==="monthly"){
+    const [y,m] = key.split("-");
+    const names=["január","február","március","április","május","június","július","augusztus","szeptember","október","november","december"];
+    return `${y}. ${names[parseInt(m,10)-1]}`;
+  }
+  const [y, wpart] = key.split("-H");
+  const week = parseInt(wpart,10);
+  const simple = new Date(parseInt(y,10),0,1+(week-1)*7);
+  const dow = simple.getDay() || 7;
+  const monday = new Date(simple); monday.setDate(simple.getDate()-dow+1);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+  const fmt = d => `${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")}.`;
+  return `${y}. ${week}. hét (${fmt(monday)}–${fmt(sunday)})`;
+}
+
+function periodBreakdownRows(periodLogs){
+  const map = {};
+  periodLogs.forEach(l=>{
+    if(!map[l.productId]) map[l.productId] = { qty:0, chf:0 };
+    map[l.productId].qty += l.qty;
+    map[l.productId].chf += l.qty*l.price;
+  });
+  const nameOf = id => (state.products.find(p=>p.id===id)||{}).name || "(törölt termék)";
+  return Object.entries(map).map(([id,v])=>({ name:nameOf(id), ...v })).sort((a,b)=>b.chf-a.chf);
+}
+
+function renderHistoryAccordions(){
+  const renderRows = (kind, rows) => rows.map(r=>{
+    const isOpen = expandedPeriod[kind] === r.key;
+    const breakdown = isOpen ? periodBreakdownRows(r.logs) : [];
+    return `
+    <div class="hist-row">
+      <div class="hist-row-head" data-histtoggle="${kind}:${r.key}">
+        <span class="hist-period">${esc(periodLabel(kind, r.key))}</span>
+        <span class="hist-totals">${r.qty} db · ${chf(r.chf)}</span>
+        <span class="hist-chevron">${isOpen?'−':'+'}</span>
+      </div>
+      ${isOpen ? (breakdown.length ? `<div class="hist-breakdown">${breakdown.map(b=>`
+        <div class="hist-item"><span>${esc(b.name)}</span><span>${b.qty} db · ${chf(b.chf)}</span></div>
+      `).join("")}</div>` : `<div class="hist-breakdown"><p class="muted" style="margin:2px 0;">Nem volt eladás ebben az időszakban.</p></div>`) : ""}
+    </div>`;
+  }).join("");
+
+  const weekly = historyOpen.weekly ? computePeriodHistory("weekly", 16) : [];
+  const monthly = historyOpen.monthly ? computePeriodHistory("monthly", 18) : [];
+
+  return `
+    <div class="accordion">
+      <div class="accordion-head" data-accordion="weekly">
+        <span>📅 Heti bontás — visszanézés</span><span class="accordion-chevron">${historyOpen.weekly?'▲':'▼'}</span>
+      </div>
+      ${historyOpen.weekly ? `<div class="accordion-body">${renderRows("weekly", weekly)}</div>` : ""}
+    </div>
+    <div class="accordion" style="margin-top:6px;">
+      <div class="accordion-head" data-accordion="monthly">
+        <span>🗓️ Havi bontás — visszanézés</span><span class="accordion-chevron">${historyOpen.monthly?'▲':'▼'}</span>
+      </div>
+      ${historyOpen.monthly ? `<div class="accordion-body">${renderRows("monthly", monthly)}</div>` : ""}
+    </div>
+  `;
+}
+
+function render(){
+  const app = document.getElementById("app");
+  const kpis = computeKpis();
+  const chartData = computeChartData();
+  const maxV = Math.max(1, ...chartData.map(d=>d.v));
+
+  app.innerHTML = `
+    <div class="header">
+      <div class="brandmark">⛰️</div>
+      <div>
+        <div class="eyebrow">FURKAPASS · 2429 m</div>
+        <h1>Souvenirs Készlet</h1>
+      </div>
+      <div class="header-right">
+        <div class="datebadge">${new Date().toLocaleDateString("hu-HU",{year:"numeric",month:"long",day:"numeric"})}</div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button class="tab ${tab==='dashboard'?'active':''}" data-tab="dashboard">Áttekintés</button>
+      <button class="tab ${tab==='products'?'active':''}" data-tab="products">Termékek</button>
+      <button class="tab ${tab==='closing'?'active':''}" data-tab="closing">Zárás</button>
+      <button class="tab ${tab==='log'?'active':''}" data-tab="log">Napló</button>
+    </nav>
+    <div id="tabcontent"></div>
+    <div class="install-hint">Furkapass Souvenirs Készlet · offline PWA</div>
+  `;
+
+  document.querySelectorAll(".tab").forEach(btn=>{
+    btn.onclick = ()=>{ tab = btn.dataset.tab; render(); };
+  });
+
+  const content = document.getElementById("tabcontent");
+  if(tab==="dashboard") content.innerHTML = renderDashboard(kpis, chartData, maxV);
+  else if(tab==="products") content.innerHTML = renderProducts();
+  else if(tab==="closing") content.innerHTML = renderClosing();
+  else content.innerHTML = renderLog();
+
+  wireDynamicHandlers();
+
+  if(modal) renderModal();
+
+  // toast element (persist across renders)
+  if(!document.getElementById("toast")){
+    const t = document.createElement("div");
+    t.id="toast"; t.className="toast"; t.style.display="none";
+    document.body.appendChild(t);
+  }
+}
+
+function renderDashboard(kpis, chartData, maxV){
+  const totalStock = state.products.reduce((s,p)=>s+p.stock,0);
+  const stockValue = state.products.reduce((s,p)=>s+p.stock*p.price,0);
+  const lowStock = state.products.filter(p=>p.stock<=p.lowThreshold);
+
+  const bars = chartData.map(d=>{
+    const h = Math.round((d.v/maxV)*140) || 2;
+    const valLabel = metric==="chf" ? (d.v? "CHF"+d.v : "") : (d.v || "");
+    return `<div class="bar-col">
+      <div class="bar-value">${valLabel}</div>
+      <div class="bar-track"><div class="bar-fill" style="height:${h}px"></div></div>
+      <div class="bar-label">${esc(d.label)}</div>
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="section">
+    <div class="kpi-row">
+      <div class="kpi"><div class="kpi-icon">💰</div><div>
+        <div class="kpi-value">${chf(kpis.todayChf)}</div><div class="kpi-label">Ma eladva</div>
+        <div class="kpi-sub">${kpis.todayDb} db</div></div></div>
+      <div class="kpi"><div class="kpi-icon">📈</div><div>
+        <div class="kpi-value">${chf(kpis.weekChf)}</div><div class="kpi-label">Ezen a héten</div></div></div>
+      <div class="kpi"><div class="kpi-icon">📈</div><div>
+        <div class="kpi-value">${chf(kpis.monthChf)}</div><div class="kpi-label">Ebben a hónapban</div></div></div>
+      <div class="kpi"><div class="kpi-icon">📦</div><div>
+        <div class="kpi-value">${totalStock}</div><div class="kpi-label">Készleten</div>
+        <div class="kpi-sub">${chf(stockValue)}</div></div></div>
+      <div class="kpi ${kpis.low>0?'kpi-warn':''}"><div class="kpi-icon">⚠️</div><div>
+        <div class="kpi-value">${kpis.low}</div><div class="kpi-label">Alacsony készlet</div></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Bevétel / fogyás</h2>
+        <div class="segmented">
+          <button data-metric="chf" class="${metric==='chf'?'on':''}">CHF</button>
+          <button data-metric="db" class="${metric==='db'?'on':''}">Darab</button>
+        </div>
+      </div>
+      <div class="segmented wide">
+        <button data-period="daily" class="${period==='daily'?'on':''}">Napi</button>
+        <button data-period="weekly" class="${period==='weekly'?'on':''}">Heti</button>
+        <button data-period="monthly" class="${period==='monthly'?'on':''}">Havi</button>
+      </div>
+      <div class="chartbox"><div class="bar-chart">${bars}</div></div>
+    </div>
+
+    <div class="card">${renderHistoryAccordions()}</div>
+
+    <div class="card">
+      <div class="card-head"><h2>Alacsony készlet</h2></div>
+      ${lowStock.length===0 ? '<p class="muted">Minden termékből elég van készleten.</p>' :
+        `<div class="lowlist">${lowStock.map(p=>`
+          <div class="lowrow"><span class="dot"></span><span class="lowname">${esc(p.name)}</span><span class="lowcount">${p.stock} db</span></div>
+        `).join("")}</div>`}
+    </div>
+  </div>`;
+}
+
+function renderProducts(){
+  const grouped = {};
+  state.products.forEach(p=>{ (grouped[p.category] = grouped[p.category]||[]).push(p); });
+
+  const blocks = Object.entries(grouped).map(([cat, items])=>{
+    const meta = CATEGORY_META[cat] || CATEGORY_META.egyeb;
+    const cards = items.map(p=>{
+      const low = p.stock <= p.lowThreshold;
+      const thumb = p.photo
+        ? `<img class="pc-thumb" src="${p.photo}" alt="" />`
+        : `<div class="pc-thumb pc-thumb-placeholder">${meta.icon}</div>`;
+      return `
+      <div class="product-card ${low?'low':''}" data-id="${p.id}">
+        <div class="pc-top">
+          ${thumb}
+          <div class="pc-titles">
+            <div class="pc-name">${esc(p.name)}</div>
+            <div class="pc-price">${chf(p.price)} / db</div>
+          </div>
+          <div class="pc-actions">
+            <button class="icon-btn" data-edit="${p.id}">✎</button>
+            <button class="icon-btn danger" data-delete="${p.id}">🗑</button>
+          </div>
+        </div>
+        <div class="pc-stocks">
+          <div class="stockbox"><div class="stocklabel">Készleten</div><div class="stocknum">${p.stock}</div></div>
+          <div class="stockbox value"><div class="stocklabel">Készletérték</div><div class="stocknum small">${chf(p.stock*p.price)}</div></div>
+        </div>
+        <div class="pc-buttons">
+          <button class="btn small" data-sell="${p.id}" ${p.stock<=0?'disabled':''}>🛒 Eladva (1)</button>
+          <div class="restock-group">
+            <input type="number" min="1" value="5" data-restock-input="${p.id}" />
+            <button class="btn small" data-restock="${p.id}">📦 Feltölt</button>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="cat-block">
+      <div class="cat-title">${meta.icon} ${meta.label}</div>
+      <div class="product-grid">${cards}</div>
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="section">
+    <div class="section-head"><h2>Termékek</h2>
+      <button class="btn primary" id="addProductBtn">+ Új termék</button>
+    </div>
+    ${blocks || '<p class="muted">Nincs még termék.</p>'}
+  </div>`;
+}
+
+function renderClosing(){
+  const grouped = {};
+  state.products.forEach(p=>{ (grouped[p.category] = grouped[p.category]||[]).push(p); });
+
+  const blocks = Object.entries(grouped).map(([cat, items])=>{
+    const meta = CATEGORY_META[cat] || CATEGORY_META.egyeb;
+    const rows = items.map(p=>{
+      const thumb = p.photo
+        ? `<img class="cl-thumb" src="${p.photo}" alt="" />`
+        : `<div class="cl-thumb cl-thumb-placeholder">${meta.icon}</div>`;
+      return `
+      <div class="closing-row">
+        ${thumb}
+        <div class="cl-info">
+          <div class="cl-name">${esc(p.name)}</div>
+          <div class="cl-sub">jelenleg: ${p.stock} db · ${chf(p.price)}/db</div>
+        </div>
+        <input type="number" min="0" class="cl-input" id="closing-input-${p.id}" value="${p.stock}" />
+      </div>`;
+    }).join("");
+    return `<div class="cat-block">
+      <div class="cat-title">${meta.icon} ${meta.label}</div>
+      <div class="closing-list">${rows}</div>
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="section">
+    <div class="section-head"><h2>Napi zárás</h2></div>
+    <p class="muted">Írd be minden termékhez, hány darab van most ténylegesen a pulton. Amit nem érintesz, változatlan marad. A rendszer a különbségből számolja ki, mennyi fogyott, és rögzíti a bevételt.</p>
+    ${blocks || '<p class="muted">Nincs még termék.</p>'}
+    <button class="btn primary closing-submit" id="commitClosingBtn">✓ Zárás rögzítése</button>
+  </div>`;
+}
+
+function renderLog(){
+  const productOf = id => state.products.find(p=>p.id===id);
+  const nameOf = id => (productOf(id)||{}).name || "(törölt termék)";
+  const sorted = [...state.logs].sort((a,b)=>b.ts-a.ts).slice(0,200);
+  const typeLabel = { sale:"Eladás", restock:"Feltöltés" };
+  const totalRevenue = state.logs.filter(l=>l.type==="sale").reduce((s,l)=>s+l.qty*l.price,0);
+
+  const rows = sorted.map(l=>{
+    const sign = l.type==="sale" ? "-" : "+";
+    const qtyLine = `${sign} ${l.qty} db` + (l.type==="sale" ? ` · ${chf(l.qty*l.price)}` : "");
+    const time = new Date(l.ts).toLocaleString("hu-HU",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+    const prod = productOf(l.productId);
+    const thumb = prod && prod.photo ? `<img class="log-thumb" src="${prod.photo}" alt="" />` : `<div class="log-thumb log-thumb-placeholder">${prod ? (CATEGORY_META[prod.category]||CATEGORY_META.egyeb).icon : "📦"}</div>`;
+    return `<div class="logrow">
+      ${thumb}
+      <span class="logtype ${l.type}">${typeLabel[l.type]}</span>
+      <span class="logname">${esc(nameOf(l.productId))}</span>
+      <span class="logright"><span class="logqty">${qtyLine}</span><span class="logtime">${time}</span></span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="section">
+    <div class="section-head"><h2>Mozgásnapló</h2>
+      <div class="revenue-badge">Összes bevétel: ${chf(totalRevenue)}</div>
+    </div>
+    ${sorted.length===0 ? '<p class="muted">Még nincs rögzített mozgás.</p>' : `<div class="logtable">${rows}</div>`}
+  </div>`;
+}
+
+function wireDynamicHandlers(){
+  document.querySelectorAll("[data-metric]").forEach(b=>b.onclick=()=>{ metric=b.dataset.metric; render(); });
+  document.querySelectorAll("[data-period]").forEach(b=>b.onclick=()=>{ period=b.dataset.period; render(); });
+  document.querySelectorAll("[data-sell]").forEach(b=>b.onclick=()=>sell(b.dataset.sell,1));
+  document.querySelectorAll("[data-restock]").forEach(b=>b.onclick=()=>{
+    const input = document.querySelector(`[data-restock-input="${b.dataset.restock}"]`);
+    const qty = Math.max(1, parseInt(input.value,10) || 1);
+    restock(b.dataset.restock, qty);
+  });
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{
+    modal = { mode:"edit", product: state.products.find(p=>p.id===b.dataset.edit) };
+    render();
+  });
+  document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>{
+    if(confirm("Biztosan törlöd ezt a terméket?")) deleteProduct(b.dataset.delete);
+  });
+  const addBtn = document.getElementById("addProductBtn");
+  if(addBtn) addBtn.onclick = ()=>{ modal = { mode:"add", product:null }; render(); };
+
+  const commitBtn = document.getElementById("commitClosingBtn");
+  if(commitBtn) commitBtn.onclick = commitClosing;
+
+  document.querySelectorAll("[data-accordion]").forEach(el=>el.onclick=()=>{
+    const kind = el.dataset.accordion;
+    historyOpen[kind] = !historyOpen[kind];
+    if(!historyOpen[kind]) expandedPeriod[kind] = null;
+    render();
+  });
+  document.querySelectorAll("[data-histtoggle]").forEach(el=>el.onclick=()=>{
+    const [kind, key] = el.dataset.histtoggle.split(":");
+    expandedPeriod[kind] = expandedPeriod[kind]===key ? null : key;
+    render();
+  });
+}
+
+function renderModal(){
+  let host = document.getElementById("modalHost");
+  if(!host){ host = document.createElement("div"); host.id="modalHost"; document.body.appendChild(host); }
+  const p = modal.product || { name:"", category:"kulcstarto", price:8, stock:0, lowThreshold:3, photo:null };
+  const catOptions = Object.entries(CATEGORY_META).map(([k,v])=>`<option value="${k}" ${p.category===k?'selected':''}>${v.label}</option>`).join("");
+  pendingPhoto = p.photo || null;
+
+  const photoPreviewHtml = () => pendingPhoto
+    ? `<img src="${pendingPhoto}" class="photo-preview-img" alt="" />`
+    : `<div class="photo-preview-empty">Nincs fotó</div>`;
+
+  host.innerHTML = `
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modalBox">
+      <div class="modal-head"><h3>${modal.mode==="edit"?"Termék szerkesztése":"Új termék"}</h3>
+        <button class="icon-btn" id="modalClose">✕</button></div>
+      <div class="modal-body">
+        <div class="field-block">
+          <span class="field-label">Termékfotó</span>
+          <div class="photo-row">
+            <div id="photoPreview">${photoPreviewHtml()}</div>
+            <div class="photo-buttons" id="photoButtons">
+              <label class="btn small photo-pick-btn" for="f-photo">📷 Fotó</label>
+              <input type="file" accept="image/*" capture="environment" id="f-photo" style="display:none" />
+              ${pendingPhoto ? `<button type="button" class="btn small" id="f-photo-clear">Törlés</button>` : ""}
+            </div>
+          </div>
+        </div>
+        <label>Megnevezés<input id="f-name" value="${esc(p.name)}" placeholder="pl. Kulcstartó – Mormota" /></label>
+        <label>Kategória<select id="f-category">${catOptions}</select></label>
+        <div class="form-row">
+          <label>Ár (CHF)<input id="f-price" type="number" min="0" value="${p.price}" /></label>
+          <label>Riasztási küszöb<input id="f-low" type="number" min="0" value="${p.lowThreshold}" /></label>
+        </div>
+        <label>Készleten (db)<input id="f-stock" type="number" min="0" value="${p.stock}" /></label>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="modalCancel">Mégse</button>
+        <button class="btn primary" id="modalSave">✓ Mentés</button>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById("modalBackdrop").onclick = (e)=>{ if(e.target.id==="modalBackdrop"){ modal=null; pendingPhoto=null; host.innerHTML=""; } };
+  document.getElementById("modalClose").onclick = ()=>{ modal=null; pendingPhoto=null; host.innerHTML=""; };
+  document.getElementById("modalCancel").onclick = ()=>{ modal=null; pendingPhoto=null; host.innerHTML=""; };
+
+  function wirePhotoClear(){
+    const btn = document.getElementById("f-photo-clear");
+    if(btn) btn.onclick = ()=>{
+      pendingPhoto = null;
+      document.getElementById("photoPreview").innerHTML = photoPreviewHtml();
+      document.getElementById("photoButtons").querySelectorAll("#f-photo-clear").forEach(b=>b.remove());
+    };
+  }
+  wirePhotoClear();
+
+  const photoInput = document.getElementById("f-photo");
+  if(photoInput){
+    photoInput.onchange = async ()=>{
+      const file = photoInput.files && photoInput.files[0];
+      if(!file) return;
+      try{
+        pendingPhoto = await compressImage(file, 240, 0.72);
+        document.getElementById("photoPreview").innerHTML = photoPreviewHtml();
+        if(!document.getElementById("f-photo-clear")){
+          const btn = document.createElement("button");
+          btn.type = "button"; btn.className = "btn small"; btn.id = "f-photo-clear"; btn.textContent = "Törlés";
+          document.getElementById("photoButtons").appendChild(btn);
+          wirePhotoClear();
+        }
+      }catch(e){ flash("Nem sikerült beolvasni a fotót"); }
+    };
+  }
+
+  document.getElementById("modalSave").onclick = ()=>{
+    const name = document.getElementById("f-name").value.trim();
+    if(!name) return;
+    upsertProduct({
+      id: modal.mode==="edit" ? p.id : undefined,
+      name,
+      category: document.getElementById("f-category").value,
+      price: Number(document.getElementById("f-price").value)||0,
+      stock: Number(document.getElementById("f-stock").value)||0,
+      lowThreshold: Number(document.getElementById("f-low").value)||0,
+      photo: pendingPhoto,
+    });
+    pendingPhoto = null;
+    host.innerHTML = "";
+  };
+}
+
+// init
+loadState();
+render();
+
+// register service worker for offline support
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
