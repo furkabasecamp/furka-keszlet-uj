@@ -178,6 +178,11 @@ h1{ font-family: var(--display); font-weight:400; letter-spacing:0.01em; font-si
 .cl-name{ font-weight:600; font-size:13px; line-height:1.3; }
 .cl-sub{ font-family: var(--mono); font-size:10.5px; color: var(--ink-soft); margin-top:2px; }
 .cl-input{ width:64px; text-align:center; font-family: var(--mono); font-size:15px; padding:8px 4px; border-radius:7px; border:1px solid var(--line); background: var(--paper); color: var(--ink); flex-shrink:0; }
+.cl-split{ display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+.cl-split-row{ display:flex; align-items:center; gap:5px; }
+.cl-split-label{ font-family: var(--mono); font-size:9px; color: var(--ink-soft); width:34px; text-align:right; flex-shrink:0; }
+.cl-split .cl-input{ width:54px; padding:6px 4px; font-size:13px; }
+.cl-sum{ font-family: var(--mono); font-size:10px; color: var(--burn-dark); text-align:right; margin-top:1px; }
 .closing-submit{ width:100%; justify-content:center; padding:11px; font-size:13.5px; margin-top:4px; }
 
 .field-block{ display:flex; flex-direction:column; gap:4px; }
@@ -252,8 +257,10 @@ const I18N = {
     sell_btn: "🛒 Eladva (1)",
     restock_btn: "📦 Feltölt",
     closing_title: "Napi zárás",
-    closing_desc: "Írd be minden termékhez, hány darab van most ténylegesen a pulton. Amit nem érintesz, változatlan marad. A rendszer a különbségből számolja ki, mennyi fogyott, és rögzíti a bevételt.",
+    closing_desc: "Írd be minden termékhez a készletszámot két mezőbe: Hely 1 és Hely 2. A rendszer automatikusan összeadja a kettőt, és abból számolja ki, mennyi fogyott összesen. Amíg ezen a fülön vagy, az app nem frissül automatikusan a háttérben.",
     closing_current: "jelenleg: {{stock}} db · {{price}}/db",
+    closing_loc1: "Hely 1",
+    closing_loc2: "Hely 2",
     closing_submit: "✓ Zárás rögzítése",
     closing_no_change: "Nem volt változás a záráskor.",
     closing_done: "Zárás rögzítve: {{qty}} db eladva · {{amount}}",
@@ -335,8 +342,10 @@ const I18N = {
     sell_btn: "🛒 Verkauft (1)",
     restock_btn: "📦 Auffüllen",
     closing_title: "Tagesabschluss",
-    closing_desc: "Trage für jedes Produkt ein, wie viele Stück gerade tatsächlich am Verkaufstisch liegen. Was du nicht änderst, bleibt gleich. Das System berechnet aus der Differenz den Verkauf und erfasst den Umsatz.",
+    closing_desc: "Trage den Bestand pro Produkt in zwei Felder ein: Standort 1 und Standort 2. Das System addiert beide automatisch und berechnet daraus den Gesamtverkauf. Solange du auf diesem Tab bist, aktualisiert sich die App nicht automatisch im Hintergrund.",
     closing_current: "aktuell: {{stock}} Stk · {{price}}/Stk",
+    closing_loc1: "Standort 1",
+    closing_loc2: "Standort 2",
     closing_submit: "✓ Abschluss erfassen",
     closing_no_change: "Keine Änderung beim Abschluss.",
     closing_done: "Abschluss erfasst: {{qty}} Stk verkauft · {{amount}}",
@@ -508,10 +517,15 @@ async function restock(id, qty) {
 async function commitClosing() {
   const changes = [];
   state.products.forEach(p => {
-    const input = document.getElementById("closing-input-" + p.id);
-    if (!input || input.value === "") return;
-    const newStock = parseInt(input.value, 10);
-    if (!isNaN(newStock)) changes.push({ id: p.id, newStock });
+    const inputA = document.getElementById("closing-a-" + p.id);
+    const inputB = document.getElementById("closing-b-" + p.id);
+    if (!inputA || !inputB) return;
+    const rawA = inputA.value, rawB = inputB.value;
+    if (rawA === "" && rawB === "") return;
+    const a = rawA === "" ? 0 : parseInt(rawA, 10);
+    const b = rawB === "" ? 0 : parseInt(rawB, 10);
+    if (isNaN(a) || isNaN(b)) return;
+    changes.push({ id: p.id, newStock: a + b });
   });
   await withBusy(async () => {
     try {
@@ -882,7 +896,16 @@ function renderClosing() {
           <div class="cl-name">${esc(p.name)}</div>
           <div class="cl-sub">${t("closing_current", { stock: p.stock, price: chf(p.price) })}</div>
         </div>
-        <input type="number" min="0" class="cl-input" id="closing-input-${p.id}" value="${p.stock}" />
+        <div class="cl-split">
+          <div class="cl-split-row">
+            <span class="cl-split-label">${t("closing_loc1")}</span>
+            <input type="number" min="0" class="cl-input" id="closing-a-${p.id}" data-closing-a="${p.id}" />
+          </div>
+          <div class="cl-split-row">
+            <span class="cl-split-label">${t("closing_loc2")}</span>
+            <input type="number" min="0" class="cl-input" id="closing-b-${p.id}" data-closing-b="${p.id}" />
+          </div>
+        </div>
       </div>`;
     }).join("");
     return `<div class="cat-block">
@@ -1113,11 +1136,11 @@ render();
 refreshState();
 
 syncTimer = setInterval(() => {
-  if (!modal && !logModal && document.visibilityState === "visible") refreshState(true);
+  if (!modal && !logModal && tab !== "closing" && document.visibilityState === "visible") refreshState(true);
 }, 15000);
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && !modal && !logModal) refreshState(true);
+  if (document.visibilityState === "visible" && !modal && !logModal && tab !== "closing") refreshState(true);
 });
 </script>
 </body>
